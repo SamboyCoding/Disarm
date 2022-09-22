@@ -2,14 +2,9 @@ using Xunit.Abstractions;
 
 namespace Disarm.Tests;
 
-public class BasicTests
+public class BasicTests : BaseDisarmTest
 {
-    private readonly ITestOutputHelper _testOutputHelper;
-
-    public BasicTests(ITestOutputHelper testOutputHelper)
-    {
-        _testOutputHelper = testOutputHelper;
-    }
+    public BasicTests(ITestOutputHelper testOutputHelper) : base(testOutputHelper) { }
 
     [Fact]
     public void TestDisassembleEntireBody()
@@ -18,7 +13,7 @@ public class BasicTests
 
         foreach (var instruction in result)
         {
-            _testOutputHelper.WriteLine(instruction.ToString());
+            OutputHelper.WriteLine(instruction.ToString());
         }
     }
 
@@ -29,7 +24,7 @@ public class BasicTests
 
         foreach (var instruction in result)
         {
-            _testOutputHelper.WriteLine(instruction.ToString());
+            OutputHelper.WriteLine(instruction.ToString());
         }
     }
 }

@@ -3,35 +3,19 @@ using Xunit.Abstractions;
 
 namespace Disarm.Tests;
 
-public class LoadStoreTests
+public class LoadStoreTests : BaseDisarmTest
 {
-    private readonly ITestOutputHelper _testOutputHelper;
-
-    public LoadStoreTests(ITestOutputHelper testOutputHelper)
-    {
-        _testOutputHelper = testOutputHelper;
-    }
+    public LoadStoreTests(ITestOutputHelper testOutputHelper) : base(testOutputHelper) { }
 
     [Fact]
-    public void LoadStoreRegisterFromImm()
-    {
-        var raw = 0x38420F59U;
-        
-        var instruction = Disassembler.DisassembleSingleInstruction(raw);
-        
-        _testOutputHelper.WriteLine(instruction.ToString());
-    }
+    public void LoadStoreRegisterFromImm() 
+        => DisassembleAndCheckMnemonic(0x38420F59U, Arm64Mnemonic.LDRB);
 
     [Fact]
     public void LoadStoreRegFromRegOffset()
     {
-        var raw = 0xB8697949U;
+        var instruction = DisassembleAndCheckMnemonic(0xB8697949U, Arm64Mnemonic.LDR);
         
-        var instruction = Disassembler.DisassembleSingleInstruction(raw);
-        
-        _testOutputHelper.WriteLine(instruction.ToString());
-        
-        Assert.Equal(Arm64Mnemonic.LDR, instruction.Mnemonic);
         Assert.Equal(Arm64Register.W9, instruction.Op0Reg);
         Assert.Equal(Arm64OperandKind.Memory, instruction.Op1Kind);
         Assert.Equal(Arm64Register.X10, instruction.MemBase);

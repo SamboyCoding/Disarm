@@ -3,74 +3,33 @@ using Xunit.Abstractions;
 
 namespace Disarm.Tests;
 
-public class SimdTest
+public class SimdTest : BaseDisarmTest
 {
-    private readonly ITestOutputHelper _testOutputHelper;
-
-    public SimdTest(ITestOutputHelper testOutputHelper)
-    {
-        _testOutputHelper = testOutputHelper;
-    }
+    public SimdTest(ITestOutputHelper testOutputHelper) : base(testOutputHelper) { }
 
     [Fact]
-    public void TestSimdInstruction()
-    {
-        var insn = (uint) 0x4EA0_1C08;
-
-        var result = Disassembler.DisassembleSingleInstruction(insn);
-        
-        _testOutputHelper.WriteLine(result.ToString());
-        
-        Assert.Equal(Arm64Mnemonic.MOV, result.Mnemonic);
-    }
+    public void TestSimdInstruction() 
+        => DisassembleAndCheckMnemonic(0x4EA0_1C08, Arm64Mnemonic.MOV);
 
     [Fact]
-    public void TestScvtf()
-    {
-        var raw = 0x1E2202A1U;
-        
-        var result = Disassembler.DisassembleSingleInstruction(raw);
-        
-        _testOutputHelper.WriteLine(result.ToString());
-        
-        Assert.Equal(Arm64Mnemonic.SCVTF, result.Mnemonic);
-    }
+    public void TestScvtf() 
+        => DisassembleAndCheckMnemonic(0x1E2202A1U, Arm64Mnemonic.SCVTF);
 
     [Fact]
-    public void Test2SourceFp()
-    {
-        var raw = 0x1E201820U;
-        
-        var result = Disassembler.DisassembleSingleInstruction(raw);
-        
-        _testOutputHelper.WriteLine(result.ToString());
-        
-        Assert.Equal(Arm64Mnemonic.FDIV, result.Mnemonic);
-    }
+    public void Test2SourceFp() 
+        => DisassembleAndCheckMnemonic(0x1E201820U, Arm64Mnemonic.FDIV);
 
     [Fact]
     public void TestFp16Scvtf()
     {
-        var raw = 0x5E21D800U;
-        
-        var result = Disassembler.DisassembleSingleInstruction(raw);
-        
-        _testOutputHelper.WriteLine(result.ToString());
-        
-        Assert.Equal(Arm64Mnemonic.SCVTF, result.Mnemonic);
+        var result = DisassembleAndCheckMnemonic(0x5E21D800U, Arm64Mnemonic.SCVTF);
         Assert.Equal(Arm64Register.S0, result.Op0Reg);
     }
 
     [Fact]
     public void TestFpCompare()
     {
-        var raw = 0x1E602020U;
-        
-        var result = Disassembler.DisassembleSingleInstruction(raw);
-        
-        _testOutputHelper.WriteLine(result.ToString());
-        
-        Assert.Equal(Arm64Mnemonic.FCMP, result.Mnemonic);
+        var result = DisassembleAndCheckMnemonic(0x1E602020U, Arm64Mnemonic.FCMP);
         Assert.Equal(Arm64Register.D1, result.Op0Reg);
         Assert.Equal(Arm64Register.D0, result.Op1Reg);
     }
@@ -78,13 +37,7 @@ public class SimdTest
     [Fact]
     public void TestFsqrt()
     {
-        var raw = 0x1E61C020U;
-        
-        var result = Disassembler.DisassembleSingleInstruction(raw);
-        
-        _testOutputHelper.WriteLine(result.ToString());
-        
-        Assert.Equal(Arm64Mnemonic.FSQRT, result.Mnemonic);
+        var result = DisassembleAndCheckMnemonic(0x1E61C020U, Arm64Mnemonic.FSQRT);
         Assert.Equal(Arm64Register.D0, result.Op0Reg);
         Assert.Equal(Arm64Register.D1, result.Op1Reg);
     }
@@ -92,13 +45,7 @@ public class SimdTest
     [Fact]
     public void TestFcsel()
     {
-        var raw = 0x1E281C00U;
-        
-        var result = Disassembler.DisassembleSingleInstruction(raw);
-        
-        _testOutputHelper.WriteLine(result.ToString());
-        
-        Assert.Equal(Arm64Mnemonic.FCSEL, result.Mnemonic);
+        var result = DisassembleAndCheckMnemonic(0x1E281C00U, Arm64Mnemonic.FCSEL);
         Assert.Equal(Arm64Register.S0, result.Op0Reg);
         Assert.Equal(Arm64Register.S0, result.Op1Reg);
         Assert.Equal(Arm64Register.S8, result.Op2Reg);
@@ -108,13 +55,7 @@ public class SimdTest
     [Fact]
     public void TestMovi()
     {
-        var raw = 0x2F00E400U;
-        
-        var result = Disassembler.DisassembleSingleInstruction(raw);
-        
-        _testOutputHelper.WriteLine(result.ToString());
-        
-        Assert.Equal(Arm64Mnemonic.MOVI, result.Mnemonic);
+        var result = DisassembleAndCheckMnemonic(0x2F00E400U, Arm64Mnemonic.MOVI);
         Assert.Equal(Arm64Register.D0, result.Op0Reg);
         Assert.Equal(0, result.Op1Imm);
     }
@@ -122,12 +63,6 @@ public class SimdTest
     // [Fact]
     // public void TestAdvancedSimdCopy()
     // {
-    //     var raw = 0x6E0C0420U;
-    //     
-    //     var result = Disassembler.DisassembleSingleInstruction(raw);
-    //     
-    //     _testOutputHelper.WriteLine(result.ToString());
-    //     
-    //     Assert.Equal(Arm64Mnemonic.MOV, result.Mnemonic);
+    //     DisassembleAndCheckMnemonic(0x6E0C0420U, Arm64Mnemonic.MOV);
     // }
 }

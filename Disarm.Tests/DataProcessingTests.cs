@@ -3,52 +3,27 @@ using Xunit.Abstractions;
 
 namespace Disarm.Tests;
 
-public class DataProcessingTests
+public class DataProcessingTests : BaseDisarmTest
 {
-    private readonly ITestOutputHelper _testOutputHelper;
-
-    public DataProcessingTests(ITestOutputHelper testOutputHelper)
-    {
-        _testOutputHelper = testOutputHelper;
-    }
+    public DataProcessingTests(ITestOutputHelper testOutputHelper) : base(testOutputHelper) { }
     
     [Fact]
     public void DisassemblingBitfieldsWorks()
     {
-        var raw = 0x93407E95;
-        var insn = Disassembler.DisassembleSingleInstruction(raw);
-        
-        _testOutputHelper.WriteLine(insn.ToString());
-        
-        Assert.Equal(Arm64Mnemonic.SXTW, insn.Mnemonic);
+        var insn = DisassembleAndCheckMnemonic(0x93407E95, Arm64Mnemonic.SXTW);
         Assert.Equal(Arm64Register.X21, insn.Op0Reg);
         Assert.Equal(Arm64Register.W20, insn.Op1Reg);
     }
 
     [Fact]
-    public void DataProcessing2Source()
-    {
-        var raw = 0x1AC80D2AU;
-        
-        var insn = Disassembler.DisassembleSingleInstruction(raw);
-        
-        _testOutputHelper.WriteLine(insn.ToString());
-        
-        Assert.Equal(Arm64Mnemonic.SDIV, insn.Mnemonic);
-    }
+    public void DataProcessing2Source() 
+        => DisassembleAndCheckMnemonic(0x1AC80D2AU, Arm64Mnemonic.SDIV);
 
     [Fact]
     public void ConditionalCompareImmediate()
     {
-        //(ccmp)
-
-        var raw = 0x7A49B102U;
+        var insn = DisassembleAndCheckMnemonic(0x7A49B102U, Arm64Mnemonic.CCMP);
         
-        var insn = Disassembler.DisassembleSingleInstruction(raw);
-        
-        _testOutputHelper.WriteLine(insn.ToString());
-        
-        Assert.Equal(Arm64Mnemonic.CCMP, insn.Mnemonic);
         Assert.Equal(Arm64Register.W8, insn.Op0Reg);
         Assert.Equal(Arm64Register.W9, insn.Op1Reg);
         Assert.Equal(2, insn.Op2Imm);
