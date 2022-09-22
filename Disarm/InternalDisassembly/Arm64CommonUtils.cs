@@ -14,10 +14,10 @@ internal static class Arm64CommonUtils
     private static BitArray SignExtend(BitArray value, int size)
     {
         var result = new BitArray(size);
-        
+
         //Get top bit of value
         var topBit = value[0];
-        
+
         var startOffset = size - value.Length;
         //Copy bottom n bits of value to result
         for (var i = startOffset; i < size - 1; i++)
@@ -26,7 +26,7 @@ internal static class Arm64CommonUtils
         }
 
         //Populate remaining bits with top bit
-        for(var i = 0; i < startOffset; i++)
+        for (var i = 0; i < startOffset; i++)
         {
             result[i] = topBit;
         }
@@ -36,19 +36,19 @@ internal static class Arm64CommonUtils
 
     private static BitArray Replicate(BitArray original, int desiredLength)
     {
-        if(desiredLength % original.Length != 0)
+        if (desiredLength % original.Length != 0)
             throw new("Desired length is not a multiple of the original length");
-        
+
         var result = new BitArray(desiredLength);
-        
-        for(var i = 0; i < desiredLength; i += original.Length)
+
+        for (var i = 0; i < desiredLength; i += original.Length)
         {
-            for(var j = 0; j < original.Length; j++)
+            for (var j = 0; j < original.Length; j++)
             {
                 result[i + j] = original[j];
             }
         }
-        
+
         return result;
     }
 
@@ -115,7 +115,7 @@ internal static class Arm64CommonUtils
     public static int CorrectSignBit(uint original, int originalSizeBits)
     {
         var topBitMask = 1 << (originalSizeBits - 1);
-        
+
         //Get top bit of value
         var topBit = (original & topBitMask) != 0;
 
@@ -125,7 +125,7 @@ internal static class Arm64CommonUtils
         //Negative - get remainder, and flip all bits, then subtract from -1
         //This means all bits set => -1 - 0 = -1
         //All bits clear (except sign bit) => -1 - ((2^originalSizeBits)-1) = -(2^originalSizeBits)
-        var remainder = (int) original & (topBitMask - 1);
+        var remainder = (int)original & (topBitMask - 1);
 
         return -1 - (~remainder & (topBitMask - 1));
     }
@@ -145,20 +145,20 @@ internal static class Arm64CommonUtils
     public static (long, long) DecodeBitMasks(bool nFlag, int desiredSize, byte imms, byte immr, bool immediate)
     {
         //imms and immr are actually 6 bits not 8.
-        
+
         var combined = (short)((nFlag ? 1 << 6 : 0) | (~imms & 0b11_1111));
         var bits = LongToBits(combined, 12);
         var len = HighestSetBit(bits);
-        
-        if(len < 1)
+
+        if (len < 1)
             throw new Arm64UndefinedInstructionException("DecodeBitMasks: highestBit < 1");
-        
-        if((1 << len) > desiredSize)
+
+        if ((1 << len) > desiredSize)
             throw new Arm64UndefinedInstructionException("DecodeBitMasks: (1 << highestBit) > desiredSize");
-        
+
         var levels = (1 << len) - 1;
-        
-        if(immediate && (imms & levels) == levels)
+
+        if (immediate && (imms & levels) == levels)
             throw new Arm64UndefinedInstructionException("DecodeBitMasks: imms & levels == levels not allowed in immediate mode");
 
         var s = imms & levels;
@@ -195,31 +195,31 @@ internal static class Arm64CommonUtils
             case 0b001:
             {
                 // (Zeroes(16):imm8:Zeroes(8)) twice
-                var tmp = (uint) imm << 8;
+                var tmp = (uint)imm << 8;
                 return tmp & (ulong)tmp << 32;
             }
             case 0b010:
             {
                 // (Zeroes(8):imm8:Zeroes(16)) twice
-                var tmp = (uint) imm << 16;
+                var tmp = (uint)imm << 16;
                 return tmp & (ulong)tmp << 32;
             }
             case 0b011:
             {
                 // (imm8:Zeroes(24)) twice
-                var tmp = (uint) imm << 24;
+                var tmp = (uint)imm << 24;
                 return tmp & (ulong)tmp << 32;
             }
             case 0b100:
             {
                 // (Zeroes(8):imm8) four times
-                var tmp = (ushort) imm;
+                var tmp = (ushort)imm;
                 return tmp & (ulong)tmp << 16 & (ulong)tmp << 32 & (ulong)tmp << 48;
             }
             case 0b101:
             {
                 // (imm8:Zeroes(8)) four times
-                var tmp = (ushort) (imm << 8);
+                var tmp = (ushort)(imm << 8);
                 return tmp & (ulong)tmp << 16 & (ulong)tmp << 32 & (ulong)tmp << 48;
             }
             case 0b110:
@@ -228,12 +228,12 @@ internal static class Arm64CommonUtils
                 if ((cmode & 1) == 0)
                 {
                     // (Zeroes(16):imm8:Ones(8)) twice
-                    var tmp = (uint) imm << 8 | 0xFF;
+                    var tmp = (uint)imm << 8 | 0xFF;
                     return tmp & (ulong)tmp << 32;
                 }
-                    
+
                 // (Zeroes(8):imm8:Ones(16)) twice
-                var tmp2 = (uint) imm << 16 | 0xFFFF;
+                var tmp2 = (uint)imm << 16 | 0xFFFF;
                 return tmp2 & (ulong)tmp2 << 32;
             }
             case 0b111:
@@ -257,7 +257,7 @@ internal static class Arm64CommonUtils
 
                     return tmp;
                 }
-                
+
                 // given that imm8 is abcdefgh, and uppercasing a letter inverts it, create aBbbbbbcdefgh (13 bits)
                 var b = (imm & 0b0100_0000U) >> 6;
                 var a = (imm & 0b1000_0000U) >> 7;
@@ -272,18 +272,108 @@ internal static class Arm64CommonUtils
                     bitString <<= 19; //append 19 0s
                     return bitString & (ulong)bitString << 32; //repeat twice
                 }
-                
+
                 //last mode (cmodeLow && op): modify bitString a bit by inserting 3*b between b and c to make it 16-bit, then append 48 0s
                 bitString = bitString >> 6 //discard cdefgh
-                    << 3 //make room for 3*b
-                    | (b << 2) | (b << 1) | b //insert 3*b
-                    << 6 //make room for cdefgh
-                    | cdefgh; //append cdefgh
+                            << 3 //make room for 3*b
+                            | (b << 2) | (b << 1) | b //insert 3*b
+                            << 6 //make room for cdefgh
+                            | cdefgh; //append cdefgh
 
-                return (ulong) bitString << 48; //append 48 0s
+                return (ulong)bitString << 48; //append 48 0s
             }
             default:
                 throw new ArgumentException(nameof(cmode));
         }
+    }
+
+    public static double DecodeFPImm(uint pType, uint imm8)
+    {
+        //pType: 00 = 32-bit, 01 = 64-bit, 10 = 16-bit
+
+        var n = pType switch
+        {
+            0b00 => 32,
+            0b01 => 64,
+            0b10 => 16,
+            _ => throw new("Invalid pType")
+        };
+
+        var e = pType switch
+        {
+            0b00 => 8,
+            0b01 => 11,
+            0b10 => 5,
+            _ => throw new("Invalid pType")
+        };
+
+        var f = n - e - 1;
+        var signBit = imm8.TestBit(7);
+        var exp = (imm8.TestBit(6) ? 0UL : 1UL);
+        exp <<= e - 1;
+        //Repeat bit 6 (e - 3) times
+        var bit = imm8 >> 6 & 1;
+        for (var i = 0; i < e - 3; i++)
+        {
+            exp |= bit << (e - 2 - i);
+        }
+
+        //Finally add bits 5 and 4
+        exp |= (imm8 & 0b0011_0000U) >> 4;
+
+        var frac = imm8 & 0b0000_1111U;
+        frac <<= f - 4; //Append f - 4 0s
+
+        var resultBits = (signBit ? 1UL : 0UL) << (n - 1);
+        resultBits |= (ulong)exp << f;
+        resultBits |= frac;
+
+        var bytes = BitConverter.GetBytes(resultBits);
+
+        return n switch
+        {
+            16 => ToFloat16(bytes),
+            32 => BitConverter.ToSingle(bytes, 0),
+            64 => BitConverter.ToDouble(bytes, 0),
+            _ => throw new("Impossible")
+        };
+    }
+
+    private static double ToFloat16(byte[] bytes)
+    {
+        //TODO Validate - ARM apparently might have a non-standard fp16 format
+#if NET6_0
+        return (double)BitConverter.ToHalf(bytes);
+#else
+        var sign = bytes[0] >> 7;
+        var exp = (bytes[0] >> 3) & 0b1111;
+        var frac = (bytes[0] & 0b111) << 8 | bytes[1];
+
+        if (exp == 0b1111)
+        {
+            if (frac == 0)
+            {
+                return sign == 1 ? double.NegativeInfinity : double.PositiveInfinity;
+            }
+
+            return double.NaN;
+        }
+
+        if (exp == 0)
+        {
+            if (frac == 0)
+            {
+                return sign == 1 ? -0.0 : 0.0;
+            }
+
+            //Denormalized
+            var tmp = frac * Math.Pow(2, -14);
+            return sign == 1 ? -tmp : tmp;
+        }
+
+        //Normalized
+        var result = (1 + frac * Math.Pow(2, -10)) * Math.Pow(2, exp - 15);
+        return sign == 1 ? -result : result;
+#endif
     }
 }

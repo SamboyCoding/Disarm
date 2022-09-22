@@ -31,6 +31,12 @@ public enum Arm64OperandKind
     /// </summary>
     ImmediatePcRelative,
     /// <summary>
+    /// The operand in this slot is a floating-point immediate value.
+    /// <br/>
+    /// The OpXFpImm property is relevant in this scenario.
+    /// </summary>
+    FloatingPointImmediate,
+    /// <summary>
     /// The operand in this slot is a memory operand. Use the <see cref="Arm64Instruction.MemBase"/>, <see cref="Arm64Instruction.MemOffset"/>, and <see cref="Arm64Instruction.MemIsPreIndexed"/> properties to access the operand.
     /// </summary>
     Memory

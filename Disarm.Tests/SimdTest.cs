@@ -79,5 +79,21 @@ public class SimdTest : BaseDisarmTest
     public void TestMixedVectorElementToRegMov()
     {
         var result = DisassembleAndCheckMnemonic(0x5E0C0401, Arm64Mnemonic.MOV);
+        Assert.Equal(Arm64OperandKind.Register, result.Op0Kind);
+        Assert.Equal(Arm64OperandKind.VectorRegisterElement, result.Op1Kind);
+        Assert.Equal(Arm64Register.S1, result.Op0Reg);
+        Assert.Equal(Arm64Register.V0, result.Op1Reg);
+        Assert.Equal(Arm64VectorElementWidth.S, result.Op1VectorElement.Width);
+        Assert.Equal(1, result.Op1VectorElement.Index);
+    }
+
+    [Fact]
+    public void TestFmovImmediateToScalar()
+    {
+        var result = DisassembleAndCheckMnemonic(0x1E3E1000, Arm64Mnemonic.FMOV);
+        Assert.Equal(Arm64OperandKind.Register, result.Op0Kind);
+        Assert.Equal(Arm64OperandKind.FloatingPointImmediate, result.Op1Kind);
+        Assert.Equal(Arm64Register.S0, result.Op0Reg);
+        Assert.Equal(-1, result.Op1FpImm);
     }
 }

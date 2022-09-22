@@ -310,7 +310,45 @@ internal static class Arm64FloatingPoint
 
     public static Arm64Instruction Immediate(uint instruction)
     {
-        throw new NotImplementedException();
+        var mFlag = instruction.TestBit(31);
+        var sFlag = instruction.TestBit(29);
+        var pType = (instruction >> 22) & 0b11;
+        var imm8 = (instruction >> 13) & 0b1111_1111;
+        var imm5 = (instruction >> 5) & 0b1_1111;
+        var rd = (int) instruction & 0b1_1111;
+        
+        if(imm5 != 0)
+            throw new Arm64UndefinedInstructionException("Floating point: Immediate: all bits of imm5 are reserved");
+        
+        if(sFlag)
+            throw new Arm64UndefinedInstructionException("Floating point: Immediate: S flag is reserved");
+        
+        if(mFlag)
+            throw new Arm64UndefinedInstructionException("Floating point: Immediate: M flag is reserved");
+        
+        if(pType == 0b10)
+            throw new Arm64UndefinedInstructionException("Floating point: Immediate: ptype 0b10 is reserved");
+        
+        //Always FMOV, ptype just tells you width
+
+        var baseReg = pType switch
+        {
+            0b00 => Arm64Register.S0,
+            0b01 => Arm64Register.D0,
+            0b11 => Arm64Register.H0,
+            _ => throw new("Impossible ptype"),
+        };
+        
+        var immediate = Arm64CommonUtils.DecodeFPImm(pType, imm8);
+
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.FMOV,
+            Op0Kind = Arm64OperandKind.Register,
+            Op1Kind = Arm64OperandKind.FloatingPointImmediate,
+            Op0Reg = baseReg + rd,
+            Op1FpImm = immediate,
+        };
     }
 
     public static Arm64Instruction ConditionalCompare(uint instruction)

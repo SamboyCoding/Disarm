@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Globalization;
+using System.Text;
 using Disarm.InternalDisassembly;
 
 namespace Disarm;
@@ -22,6 +23,10 @@ public struct Arm64Instruction
         Op1Imm = 0;
         Op2Imm = 0;
         Op3Imm = 0;
+        Op0FpImm = double.NaN;
+        Op1FpImm = double.NaN;
+        Op2FpImm = double.NaN;
+        Op3FpImm = double.NaN;
         Op0Arrangement = Arm64ArrangementSpecifier.None;
         Op1Arrangement = Arm64ArrangementSpecifier.None;
         Op2Arrangement = Arm64ArrangementSpecifier.None;
@@ -70,6 +75,10 @@ public struct Arm64Instruction
     public long Op1Imm { get; internal set; }
     public long Op2Imm { get; internal set; }
     public long Op3Imm { get; internal set; }
+    public double Op0FpImm { get; internal set; }
+    public double Op1FpImm { get; internal set; }
+    public double Op2FpImm { get; internal set; }
+    public double Op3FpImm { get; internal set; }
     public Arm64ArrangementSpecifier Op0Arrangement { get; internal set; }
     public Arm64ArrangementSpecifier Op1Arrangement { get; internal set; }
     public Arm64ArrangementSpecifier Op2Arrangement { get; internal set; }
@@ -110,13 +119,13 @@ public struct Arm64Instruction
         sb.Append(' ');
 
         //Ew yes I'm using goto.
-        if (!AppendOperand(sb, Op0Kind, Op0Reg, Op0VectorElement, Op0Arrangement, Op1ShiftType, Op0Imm))
+        if (!AppendOperand(sb, Op0Kind, Op0Reg, Op0VectorElement, Op0Arrangement, Op1ShiftType, Op0Imm, Op0FpImm))
             goto doneops;
-        if (!AppendOperand(sb, Op1Kind, Op1Reg, Op1VectorElement, Op1Arrangement, Op1ShiftType, Op1Imm, true))
+        if (!AppendOperand(sb, Op1Kind, Op1Reg, Op1VectorElement, Op1Arrangement, Op1ShiftType, Op1Imm, Op1FpImm, true))
             goto doneops;
-        if (!AppendOperand(sb, Op2Kind, Op2Reg, Op2VectorElement, Op2Arrangement, Op1ShiftType, Op2Imm, true))
+        if (!AppendOperand(sb, Op2Kind, Op2Reg, Op2VectorElement, Op2Arrangement, Op1ShiftType, Op2Imm, Op2FpImm, true))
             goto doneops;
-        if (!AppendOperand(sb, Op3Kind, Op3Reg, Op3VectorElement, Op3Arrangement, Op1ShiftType, Op3Imm, true))
+        if (!AppendOperand(sb, Op3Kind, Op3Reg, Op3VectorElement, Op3Arrangement, Op1ShiftType, Op3Imm, Op3FpImm, true))
             goto doneops;
         
         doneops:
@@ -130,7 +139,7 @@ public struct Arm64Instruction
         return sb.ToString();
     }
 
-    private bool AppendOperand(StringBuilder sb, Arm64OperandKind kind, Arm64Register reg, Arm64VectorElement vectorElement, Arm64ArrangementSpecifier regArrangement, Arm64ShiftType shiftType, long imm, bool comma = false)
+    private bool AppendOperand(StringBuilder sb, Arm64OperandKind kind, Arm64Register reg, Arm64VectorElement vectorElement, Arm64ArrangementSpecifier regArrangement, Arm64ShiftType shiftType, long imm, double fpImm, bool comma = false)
     {
         if (kind == Arm64OperandKind.None)
             return false;
@@ -155,6 +164,9 @@ public struct Arm64Instruction
             if (shiftType != Arm64ShiftType.NONE)
                 sb.Append(shiftType).Append(' ');
             sb.Append("0x").Append(imm.ToString("X"));
+        } else if (kind == Arm64OperandKind.FloatingPointImmediate)
+        {
+            sb.Append(fpImm.ToString(CultureInfo.InvariantCulture));
         }
         else if(kind == Arm64OperandKind.ImmediatePcRelative)
             sb.Append("0x").Append(((long) Address + imm).ToString("X"));
