@@ -4,7 +4,16 @@ namespace Disarm;
 
 public static class Disassembler
 {
-    public static Arm64DisassemblyResult Disassemble(ReadOnlySpan<byte> assembly, ulong virtualAddress)
+    /// <summary>
+    /// Disassembles some instructions. The length of the input span must be a multiple of 4 bytes, as each instruction is 4 bytes.
+    /// </summary>
+    /// <param name="assembly">The assembly code to disassemble</param>
+    /// <param name="virtualAddress">The virtual address of the first instruction, used to get correct values for PC-relative reads/writes/jumps</param>
+    /// <param name="remapAliases">True to map aliased encodings to their preferred disassembly as specified by ARM. You almost always want this.</param>
+    /// <param name="continueOnError">True to continue attempting to disassemble if a bad instruction is encountered. Note that due to the fact that this swallows exceptions, many bad instructions may slow down disassembly.</param>
+    /// <returns>An <see cref="Arm64DisassemblyResult"/> containing a list of instructions and the start/end VA</returns>
+    /// <exception cref="Exception">If an undefined instruction is encountered or if an unexpected error occurs, unless <see cref="continueOnError"/> is set.</exception>
+    public static Arm64DisassemblyResult Disassemble(ReadOnlySpan<byte> assembly, ulong virtualAddress, bool remapAliases = true, bool continueOnError = false)
     {
         var ret = new List<Arm64Instruction>(assembly.Length / 4);
 
@@ -18,25 +27,31 @@ public static class Disassembler
 
             try
             {
-                var instruction = DisassembleSingleInstruction(rawInstruction, i);
+                var instruction = DisassembleSingleInstruction(rawInstruction, i, remapAliases);
                 instruction.Address = virtualAddress + (ulong)i;
 
                 ret.Add(instruction);
             }
             catch (Arm64UndefinedInstructionException e)
             {
-                throw new($"Encountered undefined instruction 0x{rawInstruction:X8} at offset {i}. Undefined reason: {e.Message}");
+                if(!continueOnError)
+                    throw new($"Encountered undefined instruction 0x{rawInstruction:X8} at offset {i}. Undefined reason: {e.Message}");
+
+                ret.Add(new() { Mnemonic = Arm64Mnemonic.INVALID });
             }
             catch (Exception e)
             {
-                throw new($"Unhandled and unexpected exception disassembling instruction 0x{rawInstruction:X8} at offset {i} (0x{i:X}) (va 0x{virtualAddress + (ulong)i:X8})", e);
+                if(!continueOnError)
+                    throw new($"Unhandled and unexpected exception disassembling instruction 0x{rawInstruction:X8} at offset {i} (0x{i:X}) (va 0x{virtualAddress + (ulong)i:X8})", e);
+                
+                ret.Add(new() { Mnemonic = Arm64Mnemonic.INVALID });
             }
         }
 
         return new(ret, virtualAddress);
     }
 
-    internal static Arm64Instruction DisassembleSingleInstruction(uint instruction, int offset = 0)
+    internal static Arm64Instruction DisassembleSingleInstruction(uint instruction, int offset = 0, bool remapAliases = true)
     {
         //Top bit splits into reserved/normal instruction
         var isReserved = instruction >> 31 == 0;
@@ -69,12 +84,13 @@ public static class Disassembler
             _ => Arm64Simd.Disassemble(instruction), //Advanced SIMD data processing
         };
 
-        Arm64Aliases.CheckForAlias(ref decoded);
+        if(remapAliases)
+            Arm64Aliases.CheckForAlias(ref decoded);
 
         return decoded;
     }
 
-    public static IEnumerable<Arm64Instruction> DisassembleOnDemand(byte[] input, ulong virtualAddress)
+    public static IEnumerable<Arm64Instruction> DisassembleOnDemand(byte[] input, ulong virtualAddress, bool remapAliases = true, bool continueOnError = false)
     {
         Arm64Instruction instruction;
 
@@ -87,16 +103,22 @@ public static class Disassembler
 
             try
             {
-                instruction = DisassembleSingleInstruction(rawInstruction, i);
+                instruction = DisassembleSingleInstruction(rawInstruction, i, remapAliases);
                 instruction.Address = virtualAddress + (ulong)i;
             }
             catch (Arm64UndefinedInstructionException e)
             {
-                throw new($"Encountered undefined instruction 0x{rawInstruction:X8} at offset {i}. Undefined reason: {e.Message}", e);
+                if(!continueOnError)
+                    throw new($"Encountered undefined instruction 0x{rawInstruction:X8} at offset {i}. Undefined reason: {e.Message}", e);
+                
+                instruction = new() { Mnemonic = Arm64Mnemonic.INVALID };
             }
             catch (Exception e)
             {
-                throw new($"Unhandled and unexpected exception disassembling instruction 0x{rawInstruction:X8} at offset {i}", e);
+                if(!continueOnError)
+                    throw new($"Unhandled and unexpected exception disassembling instruction 0x{rawInstruction:X8} at offset {i}", e);
+                
+                instruction = new() { Mnemonic = Arm64Mnemonic.INVALID };
             }
 
             yield return instruction;

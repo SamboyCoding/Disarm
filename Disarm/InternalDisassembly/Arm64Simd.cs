@@ -17,13 +17,13 @@ internal static class Arm64Simd
         //Concrete values or one-masked-bit for op0
         switch (op0)
         {
-            case 0b0100 when op1Hi == 0 && (op2 & 0b111) == 0b101 && (op3 & 0b1_1000_0011) == 0b0_0000_0010:
+            case 0b0100 when op1Hi == 0 && op2.TestPattern(0b111, 0b101) && op3.TestPattern(0b110000011, 0b10):
                 return CryptoAes(instruction);
-            case 0b0101 when op1Hi == 0 && (op2 & 0b111) == 0b101:
+            case 0b0101 when op1Hi == 0 && op2.TestPattern(0b111, 0b101) && op3.TestPattern(0b110000011, 0b10):
                 return CryptoTwoRegSha(instruction);
-            case 0b0101 when op1Hi == 0 && (op2 & 0b0100) == 0:
+            case 0b0101 when op1Hi == 0 && op2.TestPattern(0b0100, 0) && op3.TestPattern(0b100011, 0):
                 return CryptoThreeRegSha(instruction);
-            case 0b0101 or 0b0111 when op1 == 0 && (op2 >> 2) == 0:
+            case 0b0101 or 0b0111 when op1 == 0 && op2.TestPattern(0b1100, 0) && op3.TestPattern(0b100001, 1):
                 return AdvancedSimdScalarCopy(instruction);
         }
 
@@ -122,6 +122,57 @@ internal static class Arm64Simd
     
     public static Arm64Instruction AdvancedSimdScalarCopy(uint instruction)
     {
-        throw new NotImplementedException();
+        var op = instruction.TestBit(29);
+        var imm5 = (instruction >> 16) & 0b1_1111;
+        var imm4 = (instruction >> 11) & 0b1111;
+        var rn = (int) (instruction >> 5) & 0b1_1111;
+        var rd = (int) instruction & 0b1_1111;
+        
+        if(op)
+            throw new Arm64UndefinedInstructionException("Advanced SIMD: scalar copy: op flag is reserved");
+        
+        if(imm4 != 0)
+            throw new Arm64UndefinedInstructionException("Advanced SIMD: scalar copy: all bits of imm4 are reserved");
+        
+        //There's actually only one instruction here lol, DUP (element)
+        //Which in turn is actually just an alias of MOV (scalar)
+        //Still, I'll disassemble it as DUP and implement the alias properly
+        
+        var baseDestReg = imm5.TestBit(0) 
+            ? Arm64Register.B0 : imm5.TestBit(1)
+            ? Arm64Register.H0 : imm5.TestBit(2)
+            ? Arm64Register.S0 : imm5.TestBit(3)
+            ? Arm64Register.D0 : throw new Arm64UndefinedInstructionException("Advanced SIMD: scalar copy: high bit of imm5 is reserved");
+
+        var destReg = baseDestReg + rd;
+        var srcReg = Arm64Register.V0 + rn;
+
+        var srcVectorElementWidth = baseDestReg switch
+        {
+            Arm64Register.B0 => Arm64VectorElementWidth.B,
+            Arm64Register.H0 => Arm64VectorElementWidth.H,
+            Arm64Register.S0 => Arm64VectorElementWidth.S,
+            Arm64Register.D0 => Arm64VectorElementWidth.D,
+            _ => throw new("Impossible baseDestReg")
+        };
+
+        var srcElementIndex = srcVectorElementWidth switch
+        {
+            Arm64VectorElementWidth.B => imm5 >> 1,
+            Arm64VectorElementWidth.H => imm5 >> 2,
+            Arm64VectorElementWidth.S => imm5 >> 3,
+            Arm64VectorElementWidth.D => imm5 >> 4,
+            _ => throw new("Impossible srcVectorElementWidth")
+        };
+
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.DUP,
+            Op0Kind = Arm64OperandKind.Register,
+            Op0Reg = destReg,
+            Op1Kind = Arm64OperandKind.VectorRegisterElement,
+            Op1Reg = srcReg,
+            Op1VectorElement = new(srcVectorElementWidth, (int)srcElementIndex),
+        };
     }
 }

@@ -74,4 +74,10 @@ public class SimdTest : BaseDisarmTest
         Assert.Equal(Arm64VectorElementWidth.S, result.Op0VectorElement.Width);
         Assert.Equal(Arm64VectorElementWidth.S, result.Op1VectorElement.Width);
     }
+
+    [Fact]
+    public void TestMixedVectorElementToRegMov()
+    {
+        var result = DisassembleAndCheckMnemonic(0x5E0C0401, Arm64Mnemonic.MOV);
+    }
 }

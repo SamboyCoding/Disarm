@@ -130,5 +130,13 @@ internal static class Arm64Aliases
             instruction.Mnemonic = Arm64Mnemonic.MOV;
             return;
         }
+
+        if (instruction.Mnemonic == Arm64Mnemonic.DUP && instruction.Op0Kind == Arm64OperandKind.Register && instruction.Op1Kind == Arm64OperandKind.VectorRegisterElement)
+        {
+            //DUP Rd, Vn.Ts[i] => MOV Rd, Vn.Ts[i]
+            //i.e. just change DUP to MOV
+            instruction.Mnemonic = Arm64Mnemonic.MOV;
+            return;
+        }
     }
 }
