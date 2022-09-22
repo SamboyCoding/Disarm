@@ -119,15 +119,15 @@ public class SimdTest
         Assert.Equal(0, result.Op1Imm);
     }
 
-    [Fact]
-    public void TestAdvancedSimdCopy()
-    {
-        var raw = 0x6E0C0420U;
-        
-        var result = Disassembler.DisassembleSingleInstruction(raw);
-        
-        _testOutputHelper.WriteLine(result.ToString());
-        
-        Assert.Equal(Arm64Mnemonic.MOV, result.Mnemonic);
-    }
+    // [Fact]
+    // public void TestAdvancedSimdCopy()
+    // {
+    //     var raw = 0x6E0C0420U;
+    //     
+    //     var result = Disassembler.DisassembleSingleInstruction(raw);
+    //     
+    //     _testOutputHelper.WriteLine(result.ToString());
+    //     
+    //     Assert.Equal(Arm64Mnemonic.MOV, result.Mnemonic);
+    // }
 }

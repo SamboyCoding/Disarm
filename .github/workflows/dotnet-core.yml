@@ -51,7 +51,7 @@ jobs:
                 working-directory: Disarm.Tests
             -   name: Publish to Dev NuGet
                 if: github.event_name == 'push'
-                run: dotnet nuget push -s https://nuget.samboy.dev/v3/index.json -k ${{ secrets.NUGET_KEY }} ./Disarm/bin/Release/*.nupkg
+                run: dotnet nuget push -s https://nuget.samboy.dev/v3/index.json -k ${{ secrets.BAGET_KEY }} ./Disarm/bin/Release/*.nupkg
             -   name: Upload to NuGet
                 if: contains(github.event.head_commit.message, '[publish]') == true && github.event_name == 'push'
                 env:
