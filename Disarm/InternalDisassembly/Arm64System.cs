@@ -1,6 +1,6 @@
 ﻿namespace Disarm.InternalDisassembly;
 
-public static class Arm64System
+internal static class Arm64System
 {
     public static Arm64Instruction WithResult(uint instruction)
     {

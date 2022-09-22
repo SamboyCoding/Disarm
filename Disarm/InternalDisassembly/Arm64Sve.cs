@@ -1,6 +1,6 @@
 ﻿namespace Disarm.InternalDisassembly;
 
-public static class Arm64Sve
+internal static class Arm64Sve
 {
     public static Arm64Instruction Disassemble(uint instruction)
     {

@@ -60,9 +60,18 @@ public class SimdTest : BaseDisarmTest
         Assert.Equal(0, result.Op1Imm);
     }
 
-    // [Fact]
-    // public void TestAdvancedSimdCopy()
-    // {
-    //     DisassembleAndCheckMnemonic(0x6E0C0420U, Arm64Mnemonic.MOV);
-    // }
+    [Fact]
+    public void TestAdvancedSimdCopy()
+    {
+        //MOV V0.S[1], V1.S[0]
+        var result = DisassembleAndCheckMnemonic(0x6E0C0420U, Arm64Mnemonic.MOV);
+        Assert.Equal(Arm64OperandKind.VectorRegisterElement, result.Op0Kind);
+        Assert.Equal(Arm64OperandKind.VectorRegisterElement, result.Op1Kind);
+        Assert.Equal(Arm64Register.V0, result.Op0Reg);
+        Assert.Equal(Arm64Register.V1, result.Op1Reg);
+        Assert.Equal(1, result.Op0VectorElement.Index);
+        Assert.Equal(0, result.Op1VectorElement.Index);
+        Assert.Equal(Arm64VectorElementWidth.S, result.Op0VectorElement.Width);
+        Assert.Equal(Arm64VectorElementWidth.S, result.Op1VectorElement.Width);
+    }
 }

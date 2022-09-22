@@ -6,7 +6,7 @@ namespace Disarm.InternalDisassembly;
 /// Helper functions common to various arm64 instructions.
 /// The BitArray stuff in this class is Big-Endian - bit 0 is the most significant (leftmost) bit.
 /// </summary>
-public static class Arm64CommonUtils
+internal static class Arm64CommonUtils
 {
     /// <summary>
     /// Extends the given bit array to the given length by continuously adding the leftmost bit to the left until the length is reached. 

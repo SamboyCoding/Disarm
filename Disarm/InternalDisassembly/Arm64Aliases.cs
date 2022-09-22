@@ -1,6 +1,6 @@
 ﻿namespace Disarm.InternalDisassembly;
 
-public class Arm64Aliases
+internal static class Arm64Aliases
 {
     public static void CheckForAlias(ref Arm64Instruction instruction)
     {
@@ -79,6 +79,7 @@ public class Arm64Aliases
                 instruction.Op2Kind = Arm64OperandKind.None;
                 instruction.Op2Reg = Arm64Register.INVALID;
                 instruction.Mnemonic = Arm64Mnemonic.CSET;
+                return;
             }
             else if(!instruction.Op2Reg.IsSp() && !instruction.Op1Reg.IsSp() && instruction.Op1Reg == instruction.Op2Reg)
             {
@@ -87,7 +88,9 @@ public class Arm64Aliases
                 instruction.Op2Kind = Arm64OperandKind.None;
                 instruction.Op2Reg = Arm64Register.INVALID;
                 instruction.Mnemonic = Arm64Mnemonic.CINC;
+                return;
             }
+            
         }
 
         if (instruction.Mnemonic == Arm64Mnemonic.SBFM && instruction.Op2Kind == Arm64OperandKind.Immediate && instruction.Op3Kind == Arm64OperandKind.Immediate && instruction.Op2Imm == 0)
@@ -116,6 +119,16 @@ public class Arm64Aliases
             //Second reg has to be remapped to a W reg not an X one, if the first reg is an X one
             if (instruction.Op0Reg is >= Arm64Register.X0 and <= Arm64Register.X31)
                 instruction.Op1Reg = Arm64Register.W0 + (instruction.Op1Reg - Arm64Register.X0);
+            
+            return;
+        }
+
+        if (instruction.Mnemonic == Arm64Mnemonic.INS && instruction.Op0Kind == Arm64OperandKind.VectorRegisterElement && instruction.Op1Kind == Arm64OperandKind.VectorRegisterElement)
+        {
+            //INS Vd.Ts[i1], Vn.Ts[i2] => MOV Vd.Ts[i1], Vn.Ts[i2]
+            //i.e. just change INS to MOV
+            instruction.Mnemonic = Arm64Mnemonic.MOV;
+            return;
         }
     }
 }

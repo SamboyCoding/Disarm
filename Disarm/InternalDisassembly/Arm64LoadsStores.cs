@@ -1,6 +1,6 @@
 ﻿namespace Disarm.InternalDisassembly;
 
-public static class Arm64LoadsStores
+internal static class Arm64LoadsStores
 {
     public static Arm64Instruction Disassemble(uint instruction)
     {

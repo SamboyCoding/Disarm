@@ -1,7 +1,7 @@
 ﻿namespace Disarm.InternalDisassembly;
 
 //Advanced SIMD family where op0 is 01x1
-public static class Arm64ScalarAdvancedSimd
+internal static class Arm64ScalarAdvancedSimd
 {
     public static Arm64Instruction Disassemble(uint instruction)
     {

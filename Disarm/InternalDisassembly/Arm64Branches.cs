@@ -1,6 +1,6 @@
 ﻿namespace Disarm.InternalDisassembly;
 
-public static class Arm64Branches
+internal static class Arm64Branches
 {
     public static Arm64Instruction ConditionalBranchImmediate(uint instruction)
     {

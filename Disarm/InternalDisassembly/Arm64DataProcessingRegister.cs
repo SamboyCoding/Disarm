@@ -1,6 +1,6 @@
 ﻿namespace Disarm.InternalDisassembly;
 
-public static class Arm64DataProcessingRegister
+internal static class Arm64DataProcessingRegister
 {
     public static Arm64Instruction Disassemble(uint instruction)
     {

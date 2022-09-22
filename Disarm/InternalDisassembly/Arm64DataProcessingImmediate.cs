@@ -1,6 +1,6 @@
 ﻿namespace Disarm.InternalDisassembly;
 
-public static class Arm64DataProcessingImmediate
+internal static class Arm64DataProcessingImmediate
 {
     public static Arm64Instruction Disassemble(uint instruction)
     {

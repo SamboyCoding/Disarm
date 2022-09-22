@@ -1,6 +1,6 @@
 ﻿namespace Disarm.InternalDisassembly;
 
-public static class Arm64Simd
+internal static class Arm64Simd
 {
     //I hate this entire table.
     

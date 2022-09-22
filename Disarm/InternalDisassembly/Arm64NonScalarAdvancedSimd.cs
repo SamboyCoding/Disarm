@@ -1,6 +1,6 @@
 ﻿namespace Disarm.InternalDisassembly;
 
-public static class Arm64NonScalarAdvancedSimd
+internal static class Arm64NonScalarAdvancedSimd
 {
     public static Arm64Instruction Disassemble(uint instruction)
     {
@@ -235,8 +235,8 @@ public static class Arm64NonScalarAdvancedSimd
     {
         var qFlag = instruction.TestBit(30);
         var op = instruction.TestBit(29);
-        var imm5 = (byte) ((instruction >> 16) & 0b1_1111);
-        var imm4 = (byte) ((instruction >> 11) & 0b1111);
+        var imm5 = ((instruction >> 16) & 0b1_1111);
+        var imm4 = ((instruction >> 11) & 0b1111);
         var rn = (byte) ((instruction >> 5) & 0b1_1111);
         var rd = (byte) (instruction & 0b1_1111);
         
@@ -248,8 +248,30 @@ public static class Arm64NonScalarAdvancedSimd
 
         if (op && qFlag)
         {
-            //INS (element). Complicated.
-            throw new NotImplementedException();
+            //INS (element).
+            Arm64VectorElementWidth width;
+            uint index1;
+            uint index2;
+            
+            if(imm5.TestBit(0))
+                (width, index1, index2) = (Arm64VectorElementWidth.B, imm5 >> 1, imm4 & 0b1111);
+            else if(imm5.TestBit(1))
+                (width, index1, index2) = (Arm64VectorElementWidth.H, imm5 >> 2, (imm4 >> 1) & 0b111);
+            else if(imm5.TestBit(2))
+                (width, index1, index2) = (Arm64VectorElementWidth.S, imm5 >> 3, (imm4 >> 2) & 0b11);
+            else
+                (width, index1, index2) = (Arm64VectorElementWidth.D, imm5 >> 4, (imm4 >> 3) & 0b1);
+
+            return new()
+            {
+                Mnemonic = Arm64Mnemonic.INS,
+                Op0Kind = Arm64OperandKind.VectorRegisterElement,
+                Op0Reg = Arm64Register.V0 + rd,
+                Op0VectorElement = new Arm64VectorElement(width, (int)index1),
+                Op1Kind = Arm64OperandKind.VectorRegisterElement,
+                Op1Reg = Arm64Register.V0 + rn,
+                Op1VectorElement = new Arm64VectorElement(width, (int)index2),
+            };
         }
 
         var mnemonic = imm4 switch

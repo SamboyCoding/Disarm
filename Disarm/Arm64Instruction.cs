@@ -31,6 +31,10 @@ public struct Arm64Instruction
         MemIsPreIndexed = false;
         MemOffset = 0;
         MemExtendOrShiftAmount = 0;
+        Op0VectorElement = default;
+        Op1VectorElement = default;
+        Op2VectorElement = default;
+        Op3VectorElement = default;
         
         //These lines are the ONLY reason this constructor needs to exist because they define 0 as a valid value.
         MnemonicConditionCode = Arm64ConditionCode.NONE;
@@ -58,6 +62,10 @@ public struct Arm64Instruction
     public Arm64Register Op1Reg { get; internal set; }
     public Arm64Register Op2Reg { get; internal set; }
     public Arm64Register Op3Reg { get; internal set; }
+    public Arm64VectorElement Op0VectorElement { get; internal set; }
+    public Arm64VectorElement Op1VectorElement { get; internal set; }
+    public Arm64VectorElement Op2VectorElement { get; internal set; }
+    public Arm64VectorElement Op3VectorElement { get; internal set; }
     public long Op0Imm { get; internal set; }
     public long Op1Imm { get; internal set; }
     public long Op2Imm { get; internal set; }
@@ -102,13 +110,13 @@ public struct Arm64Instruction
         sb.Append(' ');
 
         //Ew yes I'm using goto.
-        if (!AppendOperand(sb, Op0Kind, Op0Reg, Op0Arrangement, Op1ShiftType, Op0Imm))
+        if (!AppendOperand(sb, Op0Kind, Op0Reg, Op0VectorElement, Op0Arrangement, Op1ShiftType, Op0Imm))
             goto doneops;
-        if (!AppendOperand(sb, Op1Kind, Op1Reg, Op1Arrangement, Op1ShiftType, Op1Imm, true))
+        if (!AppendOperand(sb, Op1Kind, Op1Reg, Op1VectorElement, Op1Arrangement, Op1ShiftType, Op1Imm, true))
             goto doneops;
-        if (!AppendOperand(sb, Op2Kind, Op2Reg, Op2Arrangement, Op1ShiftType, Op2Imm, true))
+        if (!AppendOperand(sb, Op2Kind, Op2Reg, Op2VectorElement, Op2Arrangement, Op1ShiftType, Op2Imm, true))
             goto doneops;
-        if (!AppendOperand(sb, Op3Kind, Op3Reg, Op3Arrangement, Op1ShiftType, Op3Imm, true))
+        if (!AppendOperand(sb, Op3Kind, Op3Reg, Op3VectorElement, Op3Arrangement, Op1ShiftType, Op3Imm, true))
             goto doneops;
         
         doneops:
@@ -122,7 +130,7 @@ public struct Arm64Instruction
         return sb.ToString();
     }
 
-    private bool AppendOperand(StringBuilder sb, Arm64OperandKind kind, Arm64Register reg, Arm64ArrangementSpecifier regArrangement, Arm64ShiftType shiftType, long imm, bool comma = false)
+    private bool AppendOperand(StringBuilder sb, Arm64OperandKind kind, Arm64Register reg, Arm64VectorElement vectorElement, Arm64ArrangementSpecifier regArrangement, Arm64ShiftType shiftType, long imm, bool comma = false)
     {
         if (kind == Arm64OperandKind.None)
             return false;
@@ -136,6 +144,11 @@ public struct Arm64Instruction
 
             if (regArrangement != Arm64ArrangementSpecifier.None)
                 sb.Append('.').Append(regArrangement.ToDisassemblyString());
+        } else if (kind == Arm64OperandKind.VectorRegisterElement)
+        {
+            sb.Append(reg)
+                .Append('.')
+                .Append(vectorElement);
         }
         else if (kind == Arm64OperandKind.Immediate)
         {

@@ -1,6 +1,6 @@
 ﻿namespace Disarm.InternalDisassembly;
 
-public static class Arm64FloatingPoint
+internal static class Arm64FloatingPoint
 {
     internal static Arm64Instruction ConversionToAndFromFixedPoint(uint instruction)
     {
