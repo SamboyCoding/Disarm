@@ -10,6 +10,10 @@ internal static class Arm64Hints
         if (crm is 0 && op2 is 0)
             return new() { Mnemonic = Arm64Mnemonic.NOP };
 
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.Hint, 
+        };
     }
 }

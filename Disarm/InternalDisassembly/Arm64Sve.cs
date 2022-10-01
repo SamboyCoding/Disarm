@@ -12,6 +12,10 @@ internal static class Arm64Sve
         
         //TODO
         
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.ScalableVectorExtension, 
+        };
     }
 }

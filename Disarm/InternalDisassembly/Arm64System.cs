@@ -4,21 +4,37 @@ internal static class Arm64System
 {
     public static Arm64Instruction WithResult(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.System, 
+        };
     }
 
     public static Arm64Instruction General(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.System, 
+        };
     }
 
     public static Arm64Instruction RegisterMove(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.System, 
+        };
     }
 
     public static Arm64Instruction WithRegisterArgument(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.System
+        };
     }
 }

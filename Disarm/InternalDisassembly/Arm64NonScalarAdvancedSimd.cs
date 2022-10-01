@@ -139,6 +139,7 @@ internal static class Arm64NonScalarAdvancedSimd
                 Op0Arrangement = arrangement,
                 Op1Kind = Arm64OperandKind.Immediate,
                 Op1Imm = (long)convertedImmediate,
+                MnemonicCategory = Arm64MnemonicCategory.SimdConstantToRegister,
             };
         }
 
@@ -218,17 +219,26 @@ internal static class Arm64NonScalarAdvancedSimd
             Op2Kind = shiftAmount > 0 ? Arm64OperandKind.Immediate : Arm64OperandKind.None,
             Op2Imm = shiftAmount,
             Op2ShiftType = shiftAmount > 0 ? Arm64ShiftType.LSL : Arm64ShiftType.NONE,
+            MnemonicCategory = Arm64MnemonicCategory.SimdConstantToRegister,
         };
     }
 
     private static Arm64Instruction AdvancedSimdShiftByImmediate(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.SimdVectorMath,
+        };
     }
 
     private static Arm64Instruction AdvancedSimdVectorXIndexedElement(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.SimdVectorMath,
+        };
     }
 
     private static Arm64Instruction AdvancedSimdCopy(uint instruction)
@@ -271,6 +281,7 @@ internal static class Arm64NonScalarAdvancedSimd
                 Op1Kind = Arm64OperandKind.VectorRegisterElement,
                 Op1Reg = Arm64Register.V0 + rn,
                 Op1VectorElement = new Arm64VectorElement(width, (int)index2),
+                MnemonicCategory = Arm64MnemonicCategory.SimdRegisterToRegister,
             };
         }
 
@@ -284,47 +295,83 @@ internal static class Arm64NonScalarAdvancedSimd
             _ => throw new Arm64UndefinedInstructionException($"AdvancedSimdCopy: imm4 0x{imm4:X} is reserved")
         };
 
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.SimdRegisterToRegister, 
+        };
     }
 
     private static Arm64Instruction AdvancedSimdTableLookup(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.SimdRegisterToRegister, 
+        };
     }
 
     private static Arm64Instruction AdvancedSimdPermute(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.SimdRegisterToRegister, 
+        };
     }
 
     private static Arm64Instruction AdvancedSimdExtract(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.SimdRegisterToRegister, 
+        };
     }
 
     private static Arm64Instruction AdvancedSimdThreeSameFp16(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.SimdVectorMath, 
+        };
     }
 
     private static Arm64Instruction AdvancedSimdTwoRegisterMiscFp16(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.Unspecified, //Could be convert to/from float, or fp comparison, or fp math
+        };
     }
 
     private static Arm64Instruction AdvancedSimdThreeRegExtension(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.SimdVectorMath, 
+        };
     }
 
     private static Arm64Instruction AdvancedSimdTwoRegisterMisc(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.Unspecified, //could be comparison, math, general data processing, or comparison
+        };
     }
 
     private static Arm64Instruction AdvancedSimdAcrossLanes(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.SimdVectorMath, 
+        };
     }
 
     private static Arm64Instruction AdvancedSimdThreeDifferent(uint instruction)
@@ -443,6 +490,7 @@ internal static class Arm64NonScalarAdvancedSimd
             Op0Arrangement = sizeOne,
             Op1Arrangement = sizeTwo,
             Op2Arrangement = sizeTwo,
+            MnemonicCategory = Arm64MnemonicCategory.SimdVectorMath,
         };
     }
 
@@ -515,6 +563,12 @@ internal static class Arm64NonScalarAdvancedSimd
                 0b11111 => Arm64Mnemonic.FRSQRTS,
                 _ => throw new("Impossible opcode")
             };
+
+        var category = mnemonic switch
+        {
+            Arm64Mnemonic.CMGT or Arm64Mnemonic.CMGE or Arm64Mnemonic.CMTST => Arm64MnemonicCategory.SimdComparison,
+            _ => Arm64MnemonicCategory.SimdVectorMath,
+        };
 
         //Three groups of arrangements based on how much of size is used
         //If the top bit is specified (i.e. sizeHi used) then arrangement is a 2-bit field - lower bit of size : Q
@@ -590,6 +644,7 @@ internal static class Arm64NonScalarAdvancedSimd
             Op0Reg = regD,
             Op1Reg = regN,
             Op2Reg = regM,
+            MnemonicCategory = category,
         };
     }
 }

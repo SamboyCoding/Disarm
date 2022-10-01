@@ -20,6 +20,8 @@ internal static class Arm64Aliases
             //Clear op2
             instruction.Op2Kind = Arm64OperandKind.None;
             
+            instruction.MnemonicCategory = Arm64MnemonicCategory.Move;
+            
             return;
         }
 
@@ -31,6 +33,8 @@ internal static class Arm64Aliases
             //Clear op2
             instruction.Op2Kind = Arm64OperandKind.None;
             instruction.Op2Reg = Arm64Register.INVALID;
+            
+            instruction.MnemonicCategory = Arm64MnemonicCategory.Move;
             
             return;
         }
@@ -52,6 +56,8 @@ internal static class Arm64Aliases
             //Null op2
             instruction.Op2Imm = 0;
             
+            instruction.MnemonicCategory = Arm64MnemonicCategory.Comparison;
+            
             return;
         }
 
@@ -64,6 +70,8 @@ internal static class Arm64Aliases
             instruction.Mnemonic = Arm64Mnemonic.MUL;
             instruction.Op3Kind = Arm64OperandKind.None;
             instruction.Op3Reg = Arm64Register.INVALID;
+            
+            //Category doesn't change (math => math)
 
             return;
         }
@@ -128,6 +136,8 @@ internal static class Arm64Aliases
             //INS Vd.Ts[i1], Vn.Ts[i2] => MOV Vd.Ts[i1], Vn.Ts[i2]
             //i.e. just change INS to MOV
             instruction.Mnemonic = Arm64Mnemonic.MOV;
+            
+            //Category remains SimdRegisterToRegister
             return;
         }
 

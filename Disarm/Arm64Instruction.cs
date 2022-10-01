@@ -11,6 +11,7 @@ public struct Arm64Instruction
         //Default initializer
         Address = 0;
         Mnemonic = Arm64Mnemonic.INVALID;
+        MnemonicCategory = Arm64MnemonicCategory.Unspecified;
         Op0Kind = Arm64OperandKind.None;
         Op1Kind = Arm64OperandKind.None;
         Op2Kind = Arm64OperandKind.None;
@@ -56,6 +57,7 @@ public struct Arm64Instruction
 
     public ulong Address { get; internal set; }
     public Arm64Mnemonic Mnemonic { get; internal set; }
+    public Arm64MnemonicCategory MnemonicCategory { get; internal set; }
     public Arm64ConditionCode MnemonicConditionCode { get; internal set; }
 
     public Arm64OperandKind Op0Kind { get; internal set; }

@@ -4,7 +4,11 @@ internal static class Arm64FloatingPoint
 {
     internal static Arm64Instruction ConversionToAndFromFixedPoint(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.FloatingPointConversion, 
+        };
     }
     
     internal static Arm64Instruction ConversionToAndFromInteger(uint instruction)
@@ -96,6 +100,7 @@ internal static class Arm64FloatingPoint
             Op1Kind = Arm64OperandKind.Register,
             Op0Reg = regD,
             Op1Reg = regN,
+            MnemonicCategory = Arm64MnemonicCategory.FloatingPointConversion,
         };
     }
 
@@ -147,6 +152,12 @@ internal static class Arm64FloatingPoint
             0b010011 => Arm64Mnemonic.FRINT64X,
             _ => throw new Arm64UndefinedInstructionException($"Floating-point data-processing (1 source): opcode 0x{opcode:X2} is reserved")
         };
+
+        var category = mnemonic switch
+        {
+            Arm64Mnemonic.FABS or Arm64Mnemonic.FNEG or Arm64Mnemonic.FSQRT => Arm64MnemonicCategory.FloatingPointMath,
+            _ => Arm64MnemonicCategory.FloatingPointDataProcessing,
+        };
         
         var baseReg = ptype switch
         {
@@ -166,6 +177,7 @@ internal static class Arm64FloatingPoint
             Op1Kind = Arm64OperandKind.Register,
             Op0Reg = regD,
             Op1Reg = regN,
+            MnemonicCategory = category,
         };
     }
 
@@ -233,12 +245,17 @@ internal static class Arm64FloatingPoint
             Op0Reg = regD,
             Op1Reg = regN,
             Op2Reg = regM,
+            MnemonicCategory = Arm64MnemonicCategory.FloatingPointMath,
         };
     }
 
     public static Arm64Instruction DataProcessingThreeSource(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory =  Arm64MnemonicCategory.FloatingPointMath
+        };
     }
 
     public static Arm64Instruction Compare(uint instruction)
@@ -348,12 +365,17 @@ internal static class Arm64FloatingPoint
             Op1Kind = Arm64OperandKind.FloatingPointImmediate,
             Op0Reg = baseReg + rd,
             Op1FpImm = immediate,
+            MnemonicCategory = Arm64MnemonicCategory.FloatingPointDataProcessing,
         };
     }
 
     public static Arm64Instruction ConditionalCompare(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.Comparison,
+        };
     }
 
     public static Arm64Instruction ConditionalSelect(uint instruction)
@@ -399,6 +421,7 @@ internal static class Arm64FloatingPoint
             Op1Reg = regN,
             Op2Reg = regM,
             FinalOpConditionCode = condition,
+            MnemonicCategory = Arm64MnemonicCategory.FloatingPointComparison,
         };
     }
 }

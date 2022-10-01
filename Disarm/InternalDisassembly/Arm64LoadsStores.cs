@@ -28,7 +28,10 @@ internal static class Arm64LoadsStores
         if ((op0 & 0b1011) == 0b1000)
         {
             //Load/store exclusive pair, or undefined
-            throw new NotImplementedException();
+            if (op1 == 0 && op2 == 0 && op3.TestBit(5))
+                return LoadStoreExclusivePair(instruction);
+            
+            throw new Arm64UndefinedInstructionException($"Load/store: Undefined instruction - op0={op0}, op1={op1}, op2={op2}, op3={op3}");
         }
 
         //The last 4 categories look only at the last 2 bits of op0, so we can switch now
@@ -65,17 +68,109 @@ internal static class Arm64LoadsStores
 
     private static Arm64Instruction DisassembleLoadStoreMemoryTags(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.MemoryTagging,
+        };
     }
 
     private static Arm64Instruction DisassembleLoadStoreExclusiveRegOrderedOrCompareSwap(uint instruction)
     {
-        throw new NotImplementedException();
+        //Load/store exclusive register, load/store ordered, or compare + swap
+        var op1 = instruction.TestBit(26); //Bit 26
+        var op2 = (instruction >> 23) & 0b11; //Bits 23-24
+        var op3 = (instruction >> 16) & 0b11_1111; //Bits 16-21
+        
+        if(op1)
+            throw new Arm64UndefinedInstructionException("Load/store (exclusive register|ordered)|compare/swap: op1 set");
+        
+        if(op2 == 0 && op3.TestBit(6))
+            throw new Arm64UndefinedInstructionException("Load/store (exclusive register|ordered)|compare/swap: op2=0, op3 hi bit set");
+
+        if (op2 == 0)
+            return LoadStoreExclusiveRegister(instruction);
+        
+        if(op2 != 1)
+            throw new Arm64UndefinedInstructionException("Load/store (exclusive register|ordered)|compare/swap: op2 was not 0 or 1");
+
+        if (op3.TestBit(6))
+            return CompareAndSwap(instruction);
+
+        return LoadStoreOrdered(instruction);
+    }
+    
+    private static Arm64Instruction LoadStoreExclusiveRegister(uint instruction)
+    {
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister, 
+        };
+    }
+    
+    private static Arm64Instruction CompareAndSwap(uint instruction)
+    {
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.Comparison, 
+        };
+    }
+    
+    private static Arm64Instruction LoadStoreOrdered(uint instruction)
+    {
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister, 
+        };
     }
 
     private static Arm64Instruction DisassembleLdAprRegisterLiteralOrMemoryCopySet(uint instruction)
     {
-        throw new NotImplementedException();
+        //LDAPR/STLR, load/store register literal, memory copy, or memory set
+        var op1 = instruction.TestBit(26); //Bit 26
+        var op2 = (instruction >> 23) & 0b11; //Bits 23-24
+        var op3 = (instruction >> 16) & 0b11_1111; //Bits 16-21
+        var op4 = (instruction >> 10) & 0b11; //Bits 10-11
+
+        if (!op2.TestBit(1))
+            return LoadRegisterLiteral(instruction);
+        
+        if(op3.TestBit(5))
+            throw new Arm64UndefinedInstructionException("LdAprRegisterLiteralOrMemoryCopySet: op3 hi bit set");
+
+        return op4.TestBit(0)
+            ? MemoryCopyOrSet(instruction)
+            : LdaprOrStlr(instruction);
+    }
+    
+    private static Arm64Instruction LoadRegisterLiteral(uint instruction)
+    {
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister, 
+        };
+    }
+    
+    private static Arm64Instruction MemoryCopyOrSet(uint instruction)
+    {
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.Move, 
+        };
+    }
+    
+    private static Arm64Instruction LdaprOrStlr(uint instruction)
+    {
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister, 
+        };
     }
 
     private static Arm64Instruction DisassembleLoadStorePairs(uint instruction)
@@ -111,7 +206,7 @@ internal static class Arm64LoadsStores
             //Atomic, or load/store reg with non-immediate, depending on op1
             return op4 switch
             {
-                0b00 => AtomicRead(instruction), //Atomic
+                0b00 => AtomicMemoryOperation(instruction), //Atomic
                 0b10 => LoadStoreRegisterFromRegisterOffset(instruction), //Load/store (reg), (reg + x)
                 _ => LoadStoreRegisterFromPac(instruction), //Load store (reg), (pac)
             };
@@ -218,12 +313,17 @@ internal static class Arm64LoadsStores
             Op0Reg = regT,
             MemBase = regN,
             MemOffset = offset,
+            MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister,
         };
     }
 
     private static Arm64Instruction LoadStoreNoAllocatePairs(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister,
+        };
     }
 
     private static Arm64Instruction LoadStoreRegisterPair(uint instruction, MemoryAccessMode mode)
@@ -296,6 +396,7 @@ internal static class Arm64LoadsStores
             MemBase = regN,
             MemOffset = realImm7 * dataSizeBytes,
             MemIsPreIndexed = mode == MemoryAccessMode.PreIndex,
+            MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister,
         };
     }
 
@@ -391,12 +492,17 @@ internal static class Arm64LoadsStores
             MemBase = regN,
             MemOffset = immediate,
             MemIsPreIndexed = false,
+            MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister,
         };
     }
 
-    private static Arm64Instruction AtomicRead(uint instruction)
+    private static Arm64Instruction AtomicMemoryOperation(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister,
+        };
     }
 
     private static Arm64Instruction LoadStoreRegisterFromRegisterOffset(uint instruction)
@@ -508,12 +614,17 @@ internal static class Arm64LoadsStores
             MemExtendType = isShiftedRegister ? Arm64ExtendType.NONE : extendKind,
             MemShiftType = isShiftedRegister ? Arm64ShiftType.LSL : Arm64ShiftType.NONE,
             MemExtendOrShiftAmount = shiftAmount,
+            MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister,
         };
     }
 
     private static Arm64Instruction LoadStoreRegisterFromPac(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.PointerAuthentication,
+        };
     }
 
     private static Arm64Instruction LoadStoreRegisterFromImmUnscaled(uint instruction)
@@ -606,11 +717,25 @@ internal static class Arm64LoadsStores
             MemBase = regN,
             MemOffset = immediate,
             MemIsPreIndexed = false,
+            MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister,
         };
     }
 
     private static Arm64Instruction LoadStoreRegisterUnprivileged(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister,
+        };
+    }
+
+    private static Arm64Instruction LoadStoreExclusivePair(uint instruction)
+    {
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister, 
+        };
     }
 }

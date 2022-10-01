@@ -40,7 +40,11 @@ internal static class Arm64DataProcessingRegister
 
     private static Arm64Instruction DataProcessing1Source(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.GeneralDataProcessing, 
+        };
     }
 
     private static Arm64Instruction DataProcessing2Source(uint instruction)
@@ -87,7 +91,8 @@ internal static class Arm64DataProcessingRegister
                 Op2Kind = Arm64OperandKind.Register,
                 Op0Reg = Arm64Register.W0 + rd,
                 Op1Reg = Arm64Register.W0 + rn,
-                Op2Reg = Arm64Register.W0 + rm
+                Op2Reg = Arm64Register.W0 + rm,
+                MnemonicCategory = Arm64MnemonicCategory.Math,
             };
         }
 
@@ -104,7 +109,8 @@ internal static class Arm64DataProcessingRegister
                 Op2Kind = Arm64OperandKind.Register,
                 Op0Reg = Arm64Register.X0 + rd,
                 Op1Reg = Arm64Register.X0 + rn,
-                Op2Reg = Arm64Register.X0 + rm
+                Op2Reg = Arm64Register.X0 + rm,
+                MnemonicCategory = Arm64MnemonicCategory.MemoryTagging,
             };
         }
         
@@ -127,6 +133,13 @@ internal static class Arm64DataProcessingRegister
             _ => throw new Arm64UndefinedInstructionException($"DataProcessing2Source: opcode {opcode:X} with sf == 1 and S == 0")
         };
 
+        var category = mnemonic2 switch
+        {
+            Arm64Mnemonic.IRG or Arm64Mnemonic.GMI or Arm64Mnemonic.SUBP => Arm64MnemonicCategory.MemoryTagging,
+            Arm64Mnemonic.PACGA => Arm64MnemonicCategory.PointerAuthentication,
+            _ => Arm64MnemonicCategory.Math,
+        };
+
         return new()
         {
             Mnemonic = mnemonic2,
@@ -135,7 +148,8 @@ internal static class Arm64DataProcessingRegister
             Op2Kind = Arm64OperandKind.Register,
             Op0Reg = Arm64Register.X0 + rd,
             Op1Reg = Arm64Register.X0 + rn,
-            Op2Reg = Arm64Register.X0 + rm
+            Op2Reg = Arm64Register.X0 + rm,
+            MnemonicCategory = category,
         };
     }
 
@@ -183,6 +197,7 @@ internal static class Arm64DataProcessingRegister
             Op1Reg = regN,
             Op2Reg = regM,
             Op3Imm = imm6,
+            MnemonicCategory = Arm64MnemonicCategory.Math
         };
     }
     
@@ -221,6 +236,7 @@ internal static class Arm64DataProcessingRegister
             Op2Reg = regM,
             Op3Imm = shiftAmount,
             FinalOpShiftType = shiftAmount == 0 ? Arm64ShiftType.NONE : shift,
+            MnemonicCategory = Arm64MnemonicCategory.Math
         };
     }
     
@@ -266,23 +282,36 @@ internal static class Arm64DataProcessingRegister
             Op1Reg = regN,
             Op2Reg = regM,
             Op3Imm = shift,
-            FinalOpExtendType = extendType
+            FinalOpExtendType = extendType,
+            MnemonicCategory = Arm64MnemonicCategory.Math
         };
     }
     
     private static Arm64Instruction AddSubtractWithCarry(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.Math, 
+        };
     }
     
     private static Arm64Instruction RotateRightIntoFlags(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.FlagMath, 
+        };
     }
     
     private static Arm64Instruction EvaluateIntoFlags(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.FlagMath,
+        };
     }
 
     private static Arm64Instruction ConditionalCompare(uint instruction, bool secondOpIsReg)
@@ -317,6 +346,7 @@ internal static class Arm64DataProcessingRegister
             Op1Reg = secondOpIsReg ? baseReg + (int)imm5 : Arm64Register.INVALID,
             Op2Imm = nzcv,
             FinalOpConditionCode = cond,
+            MnemonicCategory = Arm64MnemonicCategory.Comparison
         };
     }
     
@@ -362,6 +392,7 @@ internal static class Arm64DataProcessingRegister
             Op1Reg = regN,
             Op2Reg = regM,
             FinalOpConditionCode = cond,
+            MnemonicCategory = Arm64MnemonicCategory.Comparison,
         };
     }
     
@@ -411,6 +442,7 @@ internal static class Arm64DataProcessingRegister
             Op1Reg = regN,
             Op2Reg = regM,
             Op3Reg = regA,
+            MnemonicCategory = Arm64MnemonicCategory.Math,
         };
     }
 }

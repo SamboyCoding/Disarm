@@ -1,4 +1,5 @@
-﻿using Disarm.InternalDisassembly;
+﻿using System.Runtime.CompilerServices;
+using Disarm.InternalDisassembly;
 
 namespace Disarm;
 
@@ -11,9 +12,10 @@ public static class Disassembler
     /// <param name="virtualAddress">The virtual address of the first instruction, used to get correct values for PC-relative reads/writes/jumps</param>
     /// <param name="remapAliases">True to map aliased encodings to their preferred disassembly as specified by ARM. You almost always want this.</param>
     /// <param name="continueOnError">True to continue attempting to disassemble if a bad instruction is encountered. Note that due to the fact that this swallows exceptions, many bad instructions may slow down disassembly.</param>
+    /// <param name="throwOnUnimplemented">Throw an exception if an unimplemented instruction is encountered (rather than returning an instruction with mnemonic UNIMPLEMENTED and potentially a category)</param>
     /// <returns>An <see cref="Arm64DisassemblyResult"/> containing a list of instructions and the start/end VA</returns>
     /// <exception cref="Exception">If an undefined instruction is encountered or if an unexpected error occurs, unless <see cref="continueOnError"/> is set.</exception>
-    public static Arm64DisassemblyResult Disassemble(ReadOnlySpan<byte> assembly, ulong virtualAddress, bool remapAliases = true, bool continueOnError = false)
+    public static Arm64DisassemblyResult Disassemble(ReadOnlySpan<byte> assembly, ulong virtualAddress, bool remapAliases = true, bool continueOnError = false, bool throwOnUnimplemented = true)
     {
         var ret = new List<Arm64Instruction>(assembly.Length / 4);
 
@@ -25,27 +27,32 @@ public static class Disassembler
             //Assuming little endian here
             var rawInstruction = (uint)(assembly[i] | (assembly[i + 1] << 8) | (assembly[i + 2] << 16) | (assembly[i + 3] << 24));
 
+            Arm64Instruction instruction;
             try
             {
-                var instruction = DisassembleSingleInstruction(rawInstruction, i, remapAliases);
-                instruction.Address = virtualAddress + (ulong)i;
-
-                ret.Add(instruction);
+                instruction = DisassembleSingleInstruction(rawInstruction, i, remapAliases);
             }
             catch (Arm64UndefinedInstructionException e)
             {
                 if(!continueOnError)
                     throw new($"Encountered undefined instruction 0x{rawInstruction:X8} at offset {i}. Undefined reason: {e.Message}");
 
-                ret.Add(new() { Mnemonic = Arm64Mnemonic.INVALID });
+                instruction = new() { Mnemonic = Arm64Mnemonic.INVALID };
             }
             catch (Exception e)
             {
                 if(!continueOnError)
                     throw new($"Unhandled and unexpected exception disassembling instruction 0x{rawInstruction:X8} at offset {i} (0x{i:X}) (va 0x{virtualAddress + (ulong)i:X8})", e);
-                
-                ret.Add(new() { Mnemonic = Arm64Mnemonic.INVALID });
+
+                instruction = new() { Mnemonic = Arm64Mnemonic.INVALID };
             }
+            
+            instruction.Address = virtualAddress + (ulong)i;
+            
+            if(throwOnUnimplemented) 
+                CheckUnimplemented(virtualAddress, instruction, rawInstruction, i);
+
+            ret.Add(instruction);
         }
 
         return new(ret, virtualAddress);
@@ -90,7 +97,17 @@ public static class Disassembler
         return decoded;
     }
 
-    public static IEnumerable<Arm64Instruction> DisassembleOnDemand(byte[] input, ulong virtualAddress, bool remapAliases = true, bool continueOnError = false)
+    /// <summary>
+    /// Lazy-iterates and disassembles some instructions. The length of the input must be a multiple of 4 bytes, as each instruction is 4 bytes.
+    /// </summary>
+    /// <param name="input">The assembly code to disassemble</param>
+    /// <param name="virtualAddress">The virtual address of the first instruction, used to get correct values for PC-relative reads/writes/jumps</param>
+    /// <param name="remapAliases">True to map aliased encodings to their preferred disassembly as specified by ARM. You almost always want this.</param>
+    /// <param name="continueOnError">True to continue attempting to disassemble if a bad instruction is encountered. Note that due to the fact that this swallows exceptions, many bad instructions may slow down disassembly.</param>
+    /// <param name="throwOnUnimplemented">Throw an exception if an unimplemented instruction is encountered (rather than returning an instruction with mnemonic UNIMPLEMENTED and potentially a category)</param>
+    /// <returns>An enumerable which disassembles each instruction in turn as it is enumerated, returning an <see cref="Arm64Instruction"/> for each one.</returns>
+    /// <exception cref="Exception">If an undefined instruction is encountered or if an unexpected error occurs, unless <see cref="continueOnError"/> is set.</exception>
+    public static IEnumerable<Arm64Instruction> DisassembleOnDemand(byte[] input, ulong virtualAddress, bool remapAliases = true, bool continueOnError = false, bool throwOnUnimplemented = true)
     {
         Arm64Instruction instruction;
 
@@ -120,6 +137,9 @@ public static class Disassembler
                 
                 instruction = new() { Mnemonic = Arm64Mnemonic.INVALID };
             }
+            
+            if(throwOnUnimplemented)
+                CheckUnimplemented(virtualAddress, instruction, rawInstruction, i);
 
             yield return instruction;
         }
@@ -191,5 +211,12 @@ public static class Disassembler
             0b01000000110011 => Arm64Barriers.Disassemble(instruction),
             _ => throw new Arm64UndefinedInstructionException($"Undefined op1 in system instruction processor: {op1:X}")
         };
+    }
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void CheckUnimplemented(ulong virtualAddress, Arm64Instruction instruction, uint rawInstruction, int i)
+    {
+        if (instruction.Mnemonic == Arm64Mnemonic.UNIMPLEMENTED) 
+            throw new NotImplementedException($"Encountered an unimplemented instruction belonging to category {instruction.MnemonicCategory}: 0x{rawInstruction:X8} at offset {i} (0x{i:X}) (va 0x{virtualAddress + (ulong)i:X8})");
     }
 }

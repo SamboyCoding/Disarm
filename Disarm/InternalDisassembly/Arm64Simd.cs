@@ -42,7 +42,12 @@ internal static class Arm64Simd
 
         if (op0 == 0b1100)
         {
-            throw new NotImplementedException($"SIMD: Unimplemented 1100 family: Op1: {op1}, Op2: {op2}, Op3: {op3}");
+            //TODO Cryptographic two, three, or four reg
+            return new()
+            {
+                Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+                MnemonicCategory = Arm64MnemonicCategory.SimdCryptographic, 
+            };
         }
 
         if (op0.TestPattern(0b0101, 0b0001))
@@ -80,7 +85,7 @@ internal static class Arm64Simd
             };
         }
 
-        throw new NotImplementedException($"Unimplemented SIMD instruction. Op0: {op0}, Op1: {op1}, Op2: {op2}, Op3: {op3}");
+        throw new Arm64UndefinedInstructionException($"Unimplemented SIMD instruction. Op0: {op0}, Op1: {op1}, Op2: {op2}, Op3: {op3}");
     }
 
 
@@ -97,27 +102,47 @@ internal static class Arm64Simd
         if (opcode.TestBit(3) || instruction.TestBit(4) || (instruction >> 2) == 0)
             throw new Arm64UndefinedInstructionException($"AES: Reserved opcode 0x{opcode:X}");
 
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.SimdCryptographic,
+        };
     }
 
     private static Arm64Instruction CryptoTwoRegSha(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.SimdCryptographic, 
+        };
     }
 
     private static Arm64Instruction CryptoThreeRegSha(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.SimdCryptographic, 
+        };
     }
 
     internal static Arm64Instruction LoadStoreSingleStructure(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.SimdStructureLoadOrStore, 
+        };
     }
 
     internal static Arm64Instruction LoadStoreSingleStructurePostIndexed(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.SimdStructureLoadOrStore, 
+        };
     }
     
     public static Arm64Instruction AdvancedSimdScalarCopy(uint instruction)
@@ -173,6 +198,7 @@ internal static class Arm64Simd
             Op1Kind = Arm64OperandKind.VectorRegisterElement,
             Op1Reg = srcReg,
             Op1VectorElement = new(srcVectorElementWidth, (int)srcElementIndex),
+            MnemonicCategory = Arm64MnemonicCategory.SimdRegisterToRegister,
         };
     }
 }

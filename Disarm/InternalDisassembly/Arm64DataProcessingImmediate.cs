@@ -47,7 +47,8 @@ internal static class Arm64DataProcessingImmediate
             Op0Kind = Arm64OperandKind.Register,
             Op1Kind = Arm64OperandKind.Immediate,
             Op0Reg = regD,
-            Op1Imm = imm21
+            Op1Imm = imm21,
+            MnemonicCategory = Arm64MnemonicCategory.LoadAddress,
         };
     }
 
@@ -91,13 +92,18 @@ internal static class Arm64DataProcessingImmediate
             Op2Kind = Arm64OperandKind.Immediate,
             Op0Reg = regD,
             Op1Reg = regN,
-            Op2Imm = (long)immediate
+            Op2Imm = (long)immediate,
+            MnemonicCategory = Arm64MnemonicCategory.Math,
         };
     }
 
     public static Arm64Instruction AddSubtractImmediateWithTags(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.Math,
+        };
     }
 
     public static Arm64Instruction LogicalImmediate(uint instruction)
@@ -135,7 +141,8 @@ internal static class Arm64DataProcessingImmediate
             Op2Kind = Arm64OperandKind.Immediate,
             Op0Reg = regD,
             Op1Reg = regN,
-            Op2Imm = immediate
+            Op2Imm = immediate,
+            MnemonicCategory = Arm64MnemonicCategory.Math,
         };
     }
 
@@ -174,7 +181,8 @@ internal static class Arm64DataProcessingImmediate
             Op0Kind = Arm64OperandKind.Register,
             Op1Kind = Arm64OperandKind.Immediate,
             Op0Reg = regD,
-            Op1Imm = imm16
+            Op1Imm = imm16,
+            MnemonicCategory = Arm64MnemonicCategory.Move,
         };
     }
 
@@ -218,12 +226,53 @@ internal static class Arm64DataProcessingImmediate
             Op0Reg = regD,
             Op1Reg = regN,
             Op2Imm = immr,
-            Op3Imm = imms
+            Op3Imm = imms,
+            MnemonicCategory = Arm64MnemonicCategory.Move,
         };
     }
 
     public static Arm64Instruction Extract(uint instruction)
     {
-        throw new NotImplementedException();
+        var sf = instruction.TestBit(31);
+        var op21 = (instruction >> 29) & 0b11;
+        var nFlag = instruction.TestBit(22);
+        var o0 = instruction.TestBit(21);
+        var rm = (int) (instruction >> 16) & 0b1_1111;
+        var imms = (instruction >> 10) & 0b11_1111;
+        var rn = (int) (instruction >> 5) & 0b1_1111;
+        var rd = (int) instruction & 0b1_1111;
+        
+        if(op21 != 0)
+            throw new Arm64UndefinedInstructionException("Extract with op21 != 0");
+        
+        if(sf != nFlag)
+            throw new Arm64UndefinedInstructionException("Extract with sf != N");
+
+        if(o0)
+            throw new Arm64UndefinedInstructionException("Extract with o0 == 1");
+
+        if (!sf && imms.TestBit(5))
+            throw new Arm64UndefinedInstructionException("Extract: imms top bit can only be set if sf is also set");
+        
+        //Basically op21 and o0 must be clear, sf must be the same as N, and imms top bit must be clear if sf is clear
+        
+        var baseReg = sf ? Arm64Register.X0 : Arm64Register.W0;
+        var regN = baseReg + rn;
+        var regD = baseReg + rd;
+        var regM = baseReg + rm;
+        
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.EXTR,
+            MnemonicCategory = Arm64MnemonicCategory.Unspecified,
+            Op0Kind = Arm64OperandKind.Register,
+            Op1Kind = Arm64OperandKind.Register,
+            Op2Kind = Arm64OperandKind.Register,
+            Op3Kind = Arm64OperandKind.Immediate,
+            Op0Reg = regD,
+            Op1Reg = regN,
+            Op2Reg = regM,
+            Op3Imm = imms,
+        };
     }
 }

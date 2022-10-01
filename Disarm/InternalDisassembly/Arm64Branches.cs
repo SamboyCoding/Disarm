@@ -20,6 +20,7 @@ internal static class Arm64Branches
             MnemonicConditionCode = cond,
             Op0Kind = Arm64OperandKind.ImmediatePcRelative,
             Op0Imm = imm,
+            MnemonicCategory = Arm64MnemonicCategory.ConditionalBranch,
         };
     }
 
@@ -35,6 +36,7 @@ internal static class Arm64Branches
             Mnemonic = comingBack ? Arm64Mnemonic.BL : Arm64Mnemonic.B,
             Op0Kind = Arm64OperandKind.ImmediatePcRelative,
             Op0Imm = imm26,
+            MnemonicCategory = Arm64MnemonicCategory.Branch,
         };
     }
 
@@ -64,6 +66,7 @@ internal static class Arm64Branches
             Op0Reg = regT,
             Op1Imm = bitToTest,
             Op2Imm = jumpTo,
+            MnemonicCategory = Arm64MnemonicCategory.ConditionalBranch,
         };
     }
 
@@ -87,6 +90,7 @@ internal static class Arm64Branches
             Op1Kind = Arm64OperandKind.ImmediatePcRelative,
             Op0Reg = regT,
             Op1Imm = immediate,
+            MnemonicCategory = Arm64MnemonicCategory.ConditionalBranch,
         };
     }
 
@@ -149,12 +153,17 @@ internal static class Arm64Branches
                 {
                     Mnemonic = Arm64Mnemonic.RET,
                     Op0Kind = Arm64OperandKind.Register,
-                    Op0Reg = Arm64Register.X0 + rn
+                    Op0Reg = Arm64Register.X0 + rn,
+                    MnemonicCategory = Arm64MnemonicCategory.Return,
                 };
             }
         }
 
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.Return, 
+        };
     }
 
     private static Arm64Instruction HandleBrFamily(uint instruction)
@@ -166,7 +175,11 @@ internal static class Arm64Branches
         
         if(opc is not 0b0000)
             //TODO 1000 family - BRAA etc
-            throw new NotImplementedException();
+            return new()
+            {
+                Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+                MnemonicCategory = Arm64MnemonicCategory.Branch 
+            };
 
         if (op3 is 0 && op4 is 0)
         {
@@ -175,20 +188,29 @@ internal static class Arm64Branches
             {
                 Mnemonic = Arm64Mnemonic.BR,
                 Op0Kind = Arm64OperandKind.Register,
-                Op0Reg = Arm64Register.X0 + rn
+                Op0Reg = Arm64Register.X0 + rn,
+                MnemonicCategory = Arm64MnemonicCategory.Branch,
             };
         }
 
         if (op3 is 0b000010 && op4 is 0b11111)
         {
-            //BRAA family, key a, zero modifier
-            throw new NotImplementedException();
+            //TODO BRAA family, key a, zero modifier
+            return new()
+            {
+                Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+                MnemonicCategory = Arm64MnemonicCategory.Branch,
+            };
         }
 
         if (op3 is 0b000011 && op4 is 0b11111)
         {
-            //BRAA family, key b, zero modifier
-            throw new NotImplementedException();
+            //TODO BRAA family, key b, zero modifier
+            return new()
+            {
+                Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+                MnemonicCategory = Arm64MnemonicCategory.Branch, 
+            };
         }
 
         throw new Arm64UndefinedInstructionException($"BR Family: op3 {op3}, op4 {op4}");
@@ -216,14 +238,22 @@ internal static class Arm64Branches
 
         if (op3 == 0b000010)
         {
-            //BLRA family, key a, zero modifier
-            throw new NotImplementedException();
+            //TODO BLRA family, key a, zero modifier
+            return new()
+            {
+                Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+                MnemonicCategory = Arm64MnemonicCategory.Branch 
+            };
         }
         
         if (op3 == 0b000011)
         {
-            //BLRA family, key b, zero modifier
-            throw new NotImplementedException();
+            //TODO BLRA family, key b, zero modifier
+            return new()
+            {
+                Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+                MnemonicCategory = Arm64MnemonicCategory.Branch 
+            };
         }
         
         throw new Arm64UndefinedInstructionException($"BL Family: op3 {op3}, op4 {op4}");
@@ -231,11 +261,21 @@ internal static class Arm64Branches
     
     private static Arm64Instruction HandleEretFamily(uint instruction)
     {
-        throw new NotImplementedException();
+        //TODO
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.Return 
+        };
     }
     
     private static Arm64Instruction HandleDrpsFamily(uint instruction)
     {
-        throw new NotImplementedException();
+        //Debug restore process state. No operands. Shouldn't really be in any real code
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.DRPS,
+            MnemonicCategory = Arm64MnemonicCategory.Unspecified,
+        };
     }
 }

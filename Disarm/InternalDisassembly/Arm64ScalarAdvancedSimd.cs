@@ -69,22 +69,38 @@ internal static class Arm64ScalarAdvancedSimd
 
     public static Arm64Instruction Copy(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.SimdScalarRegisterToRegister, 
+        };
     }
 
     public static Arm64Instruction ShiftByImmediate(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.SimdScalarMath
+        };
     }
 
     public static Arm64Instruction ScalarXIndexedElement(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.SimdScalarMath,
+        };
     }
 
     public static Arm64Instruction TwoRegisterMiscFp16(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.Unspecified, //Could be comparison, math, conversion, or general data processing
+        };
     }
 
     public static Arm64Instruction TwoRegisterMisc(uint instruction)
@@ -102,15 +118,21 @@ internal static class Arm64ScalarAdvancedSimd
 
         Arm64Register baseReg;
         Arm64Mnemonic mnemonic;
+        Arm64MnemonicCategory category;
 
         switch (opcode)
         {
             case 0b11101 when !uFlag && size is 0b00 or 0b01:
                 baseReg = sz ? Arm64Register.D0 : Arm64Register.S0; //32 << sz
                 mnemonic = Arm64Mnemonic.SCVTF;
+                category = Arm64MnemonicCategory.SimdScalarConversion;
                 break;
             default:
-                throw new NotImplementedException();
+                return new()
+                {
+                    Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+                    MnemonicCategory = Arm64MnemonicCategory.Unspecified, 
+                };
         }
 
         var regD = baseReg + rd;
@@ -122,32 +144,53 @@ internal static class Arm64ScalarAdvancedSimd
             Op0Kind = Arm64OperandKind.Register,
             Op1Kind = Arm64OperandKind.Register,
             Op0Reg = regD,
-            Op1Reg = regN
+            Op1Reg = regN,
+            MnemonicCategory = category,
         };
     }
     
     public static Arm64Instruction Pairwise(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.SimdScalarMath, 
+        };
     }
 
     public static Arm64Instruction ThreeDifferent(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.SimdScalarMath, 
+        };
     }
 
     public static Arm64Instruction ThreeSame(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.Unspecified, //Could be comparison or math 
+        };
     }
 
     public static Arm64Instruction ThreeSameFp16(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.Unspecified, //Scalar or math 
+        };
     }
 
     public static Arm64Instruction ThreeSameExtra(uint instruction)
     {
-        throw new NotImplementedException();
+        return new()
+        {
+            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            MnemonicCategory = Arm64MnemonicCategory.SimdScalarMath,
+        };
     }
 }
