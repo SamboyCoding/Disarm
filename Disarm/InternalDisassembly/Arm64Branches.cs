@@ -31,11 +31,13 @@ internal static class Arm64Branches
 
         imm26 <<= 2; // Multiply by 4 because jump dest has to be aligned anyway
 
+        var relativeJump = Arm64CommonUtils.SignExtend(imm26, 28, 64);
+        
         return new()
         {
             Mnemonic = comingBack ? Arm64Mnemonic.BL : Arm64Mnemonic.B,
             Op0Kind = Arm64OperandKind.ImmediatePcRelative,
-            Op0Imm = imm26,
+            Op0Imm = relativeJump,
             MnemonicCategory = Arm64MnemonicCategory.Branch,
         };
     }
