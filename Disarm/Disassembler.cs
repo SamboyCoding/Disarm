@@ -1,61 +1,210 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Buffers.Binary;
+using System.Collections;
 using Disarm.InternalDisassembly;
 
 namespace Disarm;
 
 public static class Disassembler
 {
-    /// <summary>
-    /// Disassembles some instructions. The length of the input span must be a multiple of 4 bytes, as each instruction is 4 bytes.
-    /// </summary>
-    /// <param name="assembly">The assembly code to disassemble</param>
-    /// <param name="virtualAddress">The virtual address of the first instruction, used to get correct values for PC-relative reads/writes/jumps</param>
-    /// <param name="remapAliases">True to map aliased encodings to their preferred disassembly as specified by ARM. You almost always want this.</param>
-    /// <param name="continueOnError">True to continue attempting to disassemble if a bad instruction is encountered. Note that due to the fact that this swallows exceptions, many bad instructions may slow down disassembly.</param>
-    /// <param name="throwOnUnimplemented">Throw an exception if an unimplemented instruction is encountered (rather than returning an instruction with mnemonic UNIMPLEMENTED and potentially a category)</param>
-    /// <returns>An <see cref="Arm64DisassemblyResult"/> containing a list of instructions and the start/end VA</returns>
-    /// <exception cref="Exception">If an undefined instruction is encountered or if an unexpected error occurs, unless <see cref="continueOnError"/> is set.</exception>
-    public static Arm64DisassemblyResult Disassemble(ReadOnlySpan<byte> assembly, ulong virtualAddress, bool remapAliases = true, bool continueOnError = false, bool throwOnUnimplemented = true)
+    /// <param name="RemapAliases">True to map aliased encodings to their preferred disassembly as specified by ARM. You almost always want this.</param>
+    /// <param name="ContinueOnError">True to continue attempting to disassemble if a bad instruction is encountered. Note that due to the fact that this swallows exceptions, many bad instructions may slow down disassembly.</param>
+    /// <param name="ThrowOnUnimplemented">Throw an exception if an unimplemented instruction is encountered (rather than returning an instruction with mnemonic UNIMPLEMENTED and potentially a category)</param>
+    public readonly record struct Options(bool RemapAliases, bool ContinueOnError, bool ThrowOnUnimplemented)
     {
-        var ret = new List<Arm64Instruction>(assembly.Length / 4);
+        public static Options Default { get; } = new(true, false, true);
+        public static Options IgnoreErrors { get; } = Default with { ContinueOnError = true, ThrowOnUnimplemented = false };
+    }
 
-        if (assembly.Length % 4 != 0)
+    /// <summary>
+    /// Disassembles all instructions in the specified <paramref name="input"/>. The length of the input span must be a multiple of 4 bytes, as each instruction is 4 bytes.
+    /// </summary>
+    /// <param name="input">The assembly code to disassemble</param>
+    /// <param name="virtualAddress">The virtual address of the first instruction, used to get correct values for PC-relative reads/writes/jumps</param>
+    /// <param name="endVirtualAddress">The end virtual address after all instructions are read</param>
+    /// <param name="options">The disassembly options</param>
+    /// <returns>A <see cref="List{T}"/> containing disassembled instructions</returns>
+    /// <exception cref="Exception">If an undefined instruction is encountered or if an unexpected error occurs, unless <see cref="Options.ContinueOnError"/> is set.</exception>
+    public static List<Arm64Instruction> Disassemble(ReadOnlySpan<byte> input, ulong virtualAddress, out ulong endVirtualAddress, Options? options = null)
+    {
+        endVirtualAddress = virtualAddress + (ulong)input.Length;
+
+        if (input.Length % 4 != 0)
             throw new("Arm64 instructions are 4 bytes, therefore the assembly to disassemble must be a multiple of 4 bytes");
 
-        for (var i = 0; i < assembly.Length; i += 4)
+        var ret = new List<Arm64Instruction>(input.Length / 4);
+
+        foreach (var instruction in Disassemble(input, virtualAddress, options))
         {
-            //Assuming little endian here
-            var rawInstruction = (uint)(assembly[i] | (assembly[i + 1] << 8) | (assembly[i + 2] << 16) | (assembly[i + 3] << 24));
-
-            Arm64Instruction instruction;
-            try
-            {
-                instruction = DisassembleSingleInstruction(rawInstruction, i, remapAliases);
-            }
-            catch (Arm64UndefinedInstructionException e)
-            {
-                if(!continueOnError)
-                    throw new($"Encountered undefined instruction 0x{rawInstruction:X8} at offset {i}. Undefined reason: {e.Message}");
-
-                instruction = new() { Mnemonic = Arm64Mnemonic.INVALID };
-            }
-            catch (Exception e)
-            {
-                if(!continueOnError)
-                    throw new($"Unhandled and unexpected exception disassembling instruction 0x{rawInstruction:X8} at offset {i} (0x{i:X}) (va 0x{virtualAddress + (ulong)i:X8})", e);
-
-                instruction = new() { Mnemonic = Arm64Mnemonic.INVALID };
-            }
-            
-            instruction.Address = virtualAddress + (ulong)i;
-            
-            if(throwOnUnimplemented) 
-                CheckUnimplemented(virtualAddress, instruction, rawInstruction, i);
-
             ret.Add(instruction);
         }
 
-        return new(ret, virtualAddress);
+        return ret;
+    }
+
+    /// <summary>
+    /// Iteratively disassembles instructions in the specified <paramref name="input"/>.
+    /// </summary>
+    /// <param name="input">The assembly code to disassemble</param>
+    /// <param name="virtualAddress">The virtual address of the first instruction, used to get correct values for PC-relative reads/writes/jumps</param>
+    /// <param name="options">The disassembly options</param>
+    /// <returns>An enumerable which disassembles each instruction in turn as it is enumerated, returning an <see cref="Arm64Instruction"/> for each one.</returns>
+    /// <exception cref="Exception">If an undefined instruction is encountered or if an unexpected error occurs, unless <see cref="Options.ContinueOnError"/> is set.</exception>
+    public static IEnumerable<Arm64Instruction> Disassemble(byte[] input, ulong virtualAddress, Options? options = null)
+    {
+        for (var i = 0; i < input.Length; i += 4)
+        {
+            var rawBytes = input.AsSpan(i, 4);
+            yield return DisassembleSingleInstruction(rawBytes, i, virtualAddress, options ?? Options.Default);
+        }
+    }
+
+    /// <inheritdoc cref="Disassemble(byte[],ulong,System.Nullable{Disarm.Disassembler.Options})"/>
+    public static IEnumerable<Arm64Instruction> Disassemble(ReadOnlyMemory<byte> input, ulong virtualAddress, Options? options = null)
+    {
+        for (var i = 0; i < input.Length; i += 4)
+        {
+            var rawBytes = input.Slice(i, 4).Span;
+            yield return DisassembleSingleInstruction(rawBytes, i, virtualAddress, options ?? Options.Default);
+        }
+    }
+
+    /// <inheritdoc cref="Disassemble(byte[],ulong,System.Nullable{Disarm.Disassembler.Options})"/>
+    public static unsafe IEnumerable<Arm64Instruction> Disassemble(byte* input, int inputLength, ulong virtualAddress, Options? options = null)
+    {
+        return new NativeMemoryEnumerator(input, inputLength, virtualAddress, options ?? Options.Default);
+    }
+
+    private unsafe class NativeMemoryEnumerator : IEnumerable<Arm64Instruction>, IEnumerator<Arm64Instruction>
+    {
+        private readonly byte* _input;
+        private readonly int _inputLength;
+        private readonly ulong _virtualAddress;
+        private readonly Options _options;
+
+        private int _offset;
+        private Arm64Instruction _current;
+
+        internal NativeMemoryEnumerator(byte* input, int inputLength, ulong virtualAddress, Options options)
+        {
+            _input = input;
+            _inputLength = inputLength;
+            _virtualAddress = virtualAddress;
+            _options = options;
+        }
+
+        public bool MoveNext()
+        {
+            if (_offset < _inputLength)
+            {
+                _current = DisassembleSingleInstruction(new ReadOnlySpan<byte>(_input + _offset, 4), _offset, _virtualAddress, _options);
+                _offset += 4;
+                return true;
+            }
+
+            _current = default;
+            return false;
+        }
+
+        public void Reset()
+        {
+            _offset = 0;
+            _current = default;
+        }
+
+        public Arm64Instruction Current => _current;
+        object IEnumerator.Current => Current;
+
+        public void Dispose()
+        {
+        }
+
+        public NativeMemoryEnumerator GetEnumerator() => this;
+        IEnumerator<Arm64Instruction> IEnumerable<Arm64Instruction>.GetEnumerator() => this;
+        IEnumerator IEnumerable.GetEnumerator() => this;
+    }
+
+    /// <inheritdoc cref="Disassemble(byte[],ulong,System.Nullable{Disarm.Disassembler.Options})"/>
+    public static SpanEnumerator Disassemble(ReadOnlySpan<byte> input, ulong virtualAddress, Options? options = null)
+    {
+        return new SpanEnumerator(input, virtualAddress, options ?? Options.Default);
+    }
+
+    public ref struct SpanEnumerator
+    {
+        private readonly ReadOnlySpan<byte> _input;
+        private readonly ulong _virtualAddress;
+        private readonly Options _options;
+
+        private int _offset = 0;
+        private Arm64Instruction _current = default;
+
+        internal SpanEnumerator(ReadOnlySpan<byte> input, ulong virtualAddress, Options options)
+        {
+            _input = input;
+            _virtualAddress = virtualAddress;
+            _options = options;
+        }
+
+        public bool MoveNext()
+        {
+            if (_offset < _input.Length)
+            {
+                _current = DisassembleSingleInstruction(_input.Slice(_offset, 4), _offset, _virtualAddress, _options);
+                _offset += 4;
+                return true;
+            }
+
+            _current = default;
+            return false;
+        }
+
+        public void Reset()
+        {
+            _offset = 0;
+            _current = default;
+        }
+
+        public Arm64Instruction Current => _current;
+
+        public void Dispose()
+        {
+        }
+
+        public SpanEnumerator GetEnumerator() => this;
+    }
+
+    private static Arm64Instruction DisassembleSingleInstruction(ReadOnlySpan<byte> rawBytes, int offset, ulong virtualAddress, Options options)
+    {
+        var rawInstruction = BinaryPrimitives.ReadUInt32LittleEndian(rawBytes);
+
+        Arm64Instruction instruction;
+
+        try
+        {
+            instruction = DisassembleSingleInstruction(rawInstruction, offset, options.RemapAliases);
+            instruction.Address = virtualAddress + (ulong)offset;
+        }
+        catch (Arm64UndefinedInstructionException e)
+        {
+            if (!options.ContinueOnError)
+                throw new($"Encountered undefined instruction 0x{rawInstruction:X8} at offset {offset}. Undefined reason: {e.Message}", e);
+
+            instruction = new() { Mnemonic = Arm64Mnemonic.INVALID };
+        }
+        catch (Exception e)
+        {
+            if (!options.ContinueOnError)
+                throw new($"Unhandled and unexpected exception disassembling instruction 0x{rawInstruction:X8} at offset {offset}", e);
+
+            instruction = new() { Mnemonic = Arm64Mnemonic.INVALID };
+        }
+
+        if (options.ThrowOnUnimplemented && instruction.Mnemonic == Arm64Mnemonic.UNIMPLEMENTED)
+        {
+            throw new NotImplementedException($"Encountered an unimplemented instruction belonging to category {instruction.MnemonicCategory}: 0x{rawInstruction:X8} at offset {offset} (0x{offset:X}) (va 0x{virtualAddress + (ulong)offset:X8})");
+        }
+
+        return instruction;
     }
 
     internal static Arm64Instruction DisassembleSingleInstruction(uint instruction, int offset = 0, bool remapAliases = true)
@@ -91,58 +240,10 @@ public static class Disassembler
             _ => Arm64Simd.Disassemble(instruction), //Advanced SIMD data processing
         };
 
-        if(remapAliases)
+        if (remapAliases)
             Arm64Aliases.CheckForAlias(ref decoded);
 
         return decoded;
-    }
-
-    /// <summary>
-    /// Lazy-iterates and disassembles some instructions. The length of the input must be a multiple of 4 bytes, as each instruction is 4 bytes.
-    /// </summary>
-    /// <param name="input">The assembly code to disassemble</param>
-    /// <param name="virtualAddress">The virtual address of the first instruction, used to get correct values for PC-relative reads/writes/jumps</param>
-    /// <param name="remapAliases">True to map aliased encodings to their preferred disassembly as specified by ARM. You almost always want this.</param>
-    /// <param name="continueOnError">True to continue attempting to disassemble if a bad instruction is encountered. Note that due to the fact that this swallows exceptions, many bad instructions may slow down disassembly.</param>
-    /// <param name="throwOnUnimplemented">Throw an exception if an unimplemented instruction is encountered (rather than returning an instruction with mnemonic UNIMPLEMENTED and potentially a category)</param>
-    /// <returns>An enumerable which disassembles each instruction in turn as it is enumerated, returning an <see cref="Arm64Instruction"/> for each one.</returns>
-    /// <exception cref="Exception">If an undefined instruction is encountered or if an unexpected error occurs, unless <see cref="continueOnError"/> is set.</exception>
-    public static IEnumerable<Arm64Instruction> DisassembleOnDemand(byte[] input, ulong virtualAddress, bool remapAliases = true, bool continueOnError = false, bool throwOnUnimplemented = true)
-    {
-        Arm64Instruction instruction;
-
-        for (var i = 0; i < input.Length; i += 4)
-        {
-            var rawBytes = input.AsSpan(i, 4);
-
-            //Assuming little endian here
-            var rawInstruction = (uint)(rawBytes[0] | (rawBytes[1] << 8) | (rawBytes[2] << 16) | (rawBytes[3] << 24));
-
-            try
-            {
-                instruction = DisassembleSingleInstruction(rawInstruction, i, remapAliases);
-                instruction.Address = virtualAddress + (ulong)i;
-            }
-            catch (Arm64UndefinedInstructionException e)
-            {
-                if(!continueOnError)
-                    throw new($"Encountered undefined instruction 0x{rawInstruction:X8} at offset {i}. Undefined reason: {e.Message}", e);
-                
-                instruction = new() { Mnemonic = Arm64Mnemonic.INVALID };
-            }
-            catch (Exception e)
-            {
-                if(!continueOnError)
-                    throw new($"Unhandled and unexpected exception disassembling instruction 0x{rawInstruction:X8} at offset {i}", e);
-                
-                instruction = new() { Mnemonic = Arm64Mnemonic.INVALID };
-            }
-            
-            if(throwOnUnimplemented)
-                CheckUnimplemented(virtualAddress, instruction, rawInstruction, i);
-
-            yield return instruction;
-        }
     }
 
     //These methods are here because some of them are branches but some are various other kinds so we can't really delegate to one class
@@ -211,12 +312,5 @@ public static class Disassembler
             0b01000000110011 => Arm64Barriers.Disassemble(instruction),
             _ => throw new Arm64UndefinedInstructionException($"Undefined op1 in system instruction processor: {op1:X}")
         };
-    }
-    
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void CheckUnimplemented(ulong virtualAddress, Arm64Instruction instruction, uint rawInstruction, int i)
-    {
-        if (instruction.Mnemonic == Arm64Mnemonic.UNIMPLEMENTED) 
-            throw new NotImplementedException($"Encountered an unimplemented instruction belonging to category {instruction.MnemonicCategory}: 0x{rawInstruction:X8} at offset {i} (0x{i:X}) (va 0x{virtualAddress + (ulong)i:X8})");
     }
 }
