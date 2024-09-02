@@ -180,9 +180,9 @@ internal static class Arm64LoadsStores
         return op2 switch
         {
             0b00 => LoadStoreNoAllocatePairs(instruction), //load/store no-allocate pairs
-            0b01 => LoadStoreRegisterPair(instruction, MemoryAccessMode.PostIndex), //load/store register pair (post-indexed)
-            0b10 => LoadStoreRegisterPair(instruction, MemoryAccessMode.Offset), //load/store register pair (offset)
-            0b11 => LoadStoreRegisterPair(instruction, MemoryAccessMode.PreIndex), //load/store register pair (pre-indexed)
+            0b01 => LoadStoreRegisterPair(instruction, MemoryIndexMode.PostIndex), //load/store register pair (post-indexed)
+            0b10 => LoadStoreRegisterPair(instruction, MemoryIndexMode.Offset), //load/store register pair (offset)
+            0b11 => LoadStoreRegisterPair(instruction, MemoryIndexMode.PreIndex), //load/store register pair (pre-indexed)
             _ => throw new("Loads/store pairs: Impossible op2 value")
         };
     }
@@ -215,14 +215,14 @@ internal static class Arm64LoadsStores
         return op4 switch
         {
             0b00 => LoadStoreRegisterFromImmUnscaled(instruction), //Load/store (reg), (unscaled immediate)
-            0b01 => LoadStoreRegisterFromImm(instruction, MemoryAccessMode.PostIndex), //Load/store (reg), (post-indexed immediate)
+            0b01 => LoadStoreRegisterFromImm(instruction, MemoryIndexMode.PostIndex), //Load/store (reg), (post-indexed immediate)
             0b10 => LoadStoreRegisterUnprivileged(instruction), //Load/store (reg), (unprivileged)
-            0b11 => LoadStoreRegisterFromImm(instruction, MemoryAccessMode.PreIndex), //Load/Store (reg), (pre-indexed immediate)
+            0b11 => LoadStoreRegisterFromImm(instruction, MemoryIndexMode.PreIndex), //Load/Store (reg), (pre-indexed immediate)
             _ => throw new("Impossible op4"),
         };
     }
 
-    private static Arm64Instruction LoadStoreRegisterFromImm(uint instruction, MemoryAccessMode memoryAccessMode)
+    private static Arm64Instruction LoadStoreRegisterFromImm(uint instruction, MemoryIndexMode memoryIndexMode)
     {
         // Load/store immediate pre-indexed
 
@@ -309,7 +309,7 @@ internal static class Arm64LoadsStores
             Mnemonic = mnemonic,
             Op0Kind = Arm64OperandKind.Register,
             Op1Kind = Arm64OperandKind.Memory,
-            MemIsPreIndexed = memoryAccessMode == MemoryAccessMode.PreIndex,
+            MemIndexMode = memoryIndexMode,
             Op0Reg = regT,
             MemBase = regN,
             MemOffset = offset,
@@ -326,7 +326,7 @@ internal static class Arm64LoadsStores
         };
     }
 
-    private static Arm64Instruction LoadStoreRegisterPair(uint instruction, MemoryAccessMode mode)
+    private static Arm64Instruction LoadStoreRegisterPair(uint instruction, MemoryIndexMode mode)
     {
         //Page C4-559
 
@@ -395,7 +395,7 @@ internal static class Arm64LoadsStores
             Op1Reg = reg2,
             MemBase = regN,
             MemOffset = realImm7 * dataSizeBytes,
-            MemIsPreIndexed = mode == MemoryAccessMode.PreIndex,
+            MemIndexMode = mode,
             MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister,
         };
     }
@@ -491,7 +491,7 @@ internal static class Arm64LoadsStores
             Op0Reg = regT,
             MemBase = regN,
             MemOffset = immediate,
-            MemIsPreIndexed = false,
+            MemIndexMode = MemoryIndexMode.Offset,
             MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister,
         };
     }
@@ -610,7 +610,7 @@ internal static class Arm64LoadsStores
             Op0Reg = baseReg + rt,
             MemBase = Arm64Register.X0 + rn,
             MemAddendReg = secondRegBase + rm,
-            MemIsPreIndexed = false,
+            MemIndexMode = MemoryIndexMode.Offset,
             MemExtendType = isShiftedRegister ? Arm64ExtendType.NONE : extendKind,
             MemShiftType = isShiftedRegister ? Arm64ShiftType.LSL : Arm64ShiftType.NONE,
             MemExtendOrShiftAmount = shiftAmount,
@@ -716,7 +716,7 @@ internal static class Arm64LoadsStores
             Op0Reg = regT,
             MemBase = regN,
             MemOffset = immediate,
-            MemIsPreIndexed = false,
+            MemIndexMode = MemoryIndexMode.Offset,
             MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister,
         };
     }

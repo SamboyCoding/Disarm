@@ -34,7 +34,7 @@ public struct Arm64Instruction
         Op3Arrangement = Arm64ArrangementSpecifier.None;
         MemBase = Arm64Register.INVALID;
         MemAddendReg = Arm64Register.INVALID;
-        MemIsPreIndexed = false;
+        MemIndexMode = MemoryIndexMode.Offset;
         MemOffset = 0;
         MemExtendOrShiftAmount = 0;
         Op0VectorElement = default;
@@ -92,7 +92,8 @@ public struct Arm64Instruction
 
     public Arm64Register MemBase { get; internal set; }
     public Arm64Register MemAddendReg { get; internal set; }
-    public bool MemIsPreIndexed { get; internal set; }
+    public MemoryIndexMode MemIndexMode { get; internal set; }
+    public bool MemIsPreIndexed => MemIndexMode == MemoryIndexMode.PreIndex;
     public long MemOffset { get; internal set; }
     public Arm64ExtendType MemExtendType { get; internal set; }
     public Arm64ShiftType MemShiftType { get; internal set; }
@@ -185,7 +186,7 @@ public struct Arm64Instruction
         if(MemAddendReg != Arm64Register.INVALID)
             sb.Append(", ").Append(MemAddendReg.ToString());
 
-        if (MemOffset != 0)
+        if (MemOffset != 0 && MemIndexMode != MemoryIndexMode.PostIndex)
         {
             sb.Append(' ')
                 .Append(MemOffset < 0 ? '-' : '+')
@@ -203,7 +204,9 @@ public struct Arm64Instruction
 
         sb.Append(']');
 
-        if (MemIsPreIndexed)
+        if (MemIndexMode == MemoryIndexMode.PreIndex)
             sb.Append('!');
+        else if(MemIndexMode == MemoryIndexMode.PostIndex && MemOffset != 0)
+            sb.Append(", #0x").Append(MemOffset.ToString("X"));
     }
 }
