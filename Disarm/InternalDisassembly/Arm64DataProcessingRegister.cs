@@ -40,10 +40,64 @@ internal static class Arm64DataProcessingRegister
 
     private static Arm64Instruction DataProcessing1Source(uint instruction)
     {
+        var sf = instruction.TestBit(31);
+        var sFlag = instruction.TestBit(29);
+        var opcode = (instruction >> 10) & 0b11_1111;
+        var opcode2 = (instruction >> 16) & 0b1_1111;
+        var rn = (int)(instruction >> 5) & 0b1_1111;
+        var rd = (int)instruction & 0b1_1111;
+        
+        if(sFlag)
+            throw new Arm64UndefinedInstructionException("DataProcessing1Source: S flag set");
+        
+        if(opcode.TestBit(6))
+            throw new Arm64UndefinedInstructionException("DataProcessing1Source: top bit of opcode set");
+        
+        if(opcode2 > 1)
+            throw new Arm64UndefinedInstructionException("DataProcessing1Source: opcode2 > 1");
+
+        if (opcode2 == 1)
+        {
+            //FEAT_PAUTH stuff. Not implemented in disarm, yet.
+            //But also literally not defined if sf == 0
+            
+            if(!sf)
+                throw new Arm64UndefinedInstructionException("DataProcessing1Source: opcode2 == 1 and sf == 0");
+            
+            return new()
+            {
+                Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+                MnemonicCategory = Arm64MnemonicCategory.PointerAuthentication,
+            };
+        }
+        
+        if(opcode > 0b00_0101)
+            //Anything above this is FEAT_PAUTH stuff, so not defined if that's not set.
+            throw new Arm64UndefinedInstructionException($"DataProcessing1Source: opcode > 0b00_0101: {opcode:X} when opcode2 == 0");
+        
+        var baseReg = sf ? Arm64Register.X0 : Arm64Register.W0; //sf == 1 means 64-bit variant
+
+        var mnemonic = opcode switch
+        {
+            0b00_0000 => Arm64Mnemonic.RBIT,
+            0b00_0001 => Arm64Mnemonic.REV16,
+            0b00_0010 when !sf => Arm64Mnemonic.REV,
+            0b00_0010 => Arm64Mnemonic.REV32,
+            //This would be REV64 but on a 32-bit register, which is invalid
+            0b00_0011 when !sf => throw new Arm64UndefinedInstructionException("DataProcessing1Source: opcode == 0b00_0011 and sf == 0"),
+            0b00_0011 => Arm64Mnemonic.REV,
+            0b00_0100 => Arm64Mnemonic.CLZ,
+            0b00_0101 => Arm64Mnemonic.CLS,
+        };
+        
         return new()
         {
-            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
-            MnemonicCategory = Arm64MnemonicCategory.GeneralDataProcessing, 
+            Mnemonic = mnemonic,
+            MnemonicCategory = Arm64MnemonicCategory.GeneralDataProcessing,
+            Op0Kind = Arm64OperandKind.Register,
+            Op1Kind = Arm64OperandKind.Register,
+            Op0Reg = baseReg + rd,
+            Op1Reg = baseReg + rn,
         };
     }
 
@@ -289,28 +343,116 @@ internal static class Arm64DataProcessingRegister
     
     private static Arm64Instruction AddSubtractWithCarry(uint instruction)
     {
+        var sf = instruction.TestBit(31);
+        var op = instruction.TestBit(30);
+        var sFlag = instruction.TestBit(29);
+        var rm = (int) (instruction >> 16) & 0b1_1111;
+        var rn = (int) (instruction >> 5) & 0b1_1111;
+        var rd = (int) instruction & 0b1_1111;
+        
+        var mnemonic = op 
+            ? sFlag ? Arm64Mnemonic.SBCS : Arm64Mnemonic.SBC
+            : sFlag ? Arm64Mnemonic.ADCS : Arm64Mnemonic.ADC;
+        
+        var baseReg = sf ? Arm64Register.X0 : Arm64Register.W0;
+        
+        var regM = baseReg + rm;
+        var regN = baseReg + rn;
+        var regD = baseReg + rd;
+
         return new()
         {
-            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
-            MnemonicCategory = Arm64MnemonicCategory.Math, 
+            Mnemonic = mnemonic,
+            MnemonicCategory = Arm64MnemonicCategory.Math,
+            Op0Kind = Arm64OperandKind.Register,
+            Op1Kind = Arm64OperandKind.Register,
+            Op2Kind = Arm64OperandKind.Register,
+            Op0Reg = regD,
+            Op1Reg = regN,
+            Op2Reg = regM,
         };
     }
     
     private static Arm64Instruction RotateRightIntoFlags(uint instruction)
     {
+        var sf = instruction.TestBit(31);
+        var op = instruction.TestBit(30);
+        var sFlag = instruction.TestBit(29);
+        var imm6 = (instruction >> 15) & 0b11_1111;
+        var rn = (int) (instruction >> 5) & 0b1_1111;
+        var o2 = instruction.TestBit(4);
+        var mask = instruction & 0b1111;
+        
+        if(!sf)
+            throw new Arm64UndefinedInstructionException("RotateRightIntoFlags: sf == 0");
+        
+        if(op)
+            throw new Arm64UndefinedInstructionException("RotateRightIntoFlags: op == 1");
+        
+        if(!sFlag)
+            throw new Arm64UndefinedInstructionException("RotateRightIntoFlags: S == 0");
+        
+        if(o2)
+            throw new Arm64UndefinedInstructionException("RotateRightIntoFlags: o2 == 1");
+        
+        //The ONLY valid encoding is sf, no op, S, no o2, which is RMIF
+        //This entire block is FEAT_FlagM stuff but it's trivial to implement so.
+        
+        var regN = Arm64Register.X0 + rn;
+        
         return new()
         {
-            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            Mnemonic = Arm64Mnemonic.RMIF,
             MnemonicCategory = Arm64MnemonicCategory.FlagMath, 
+            Op0Kind = Arm64OperandKind.Register,
+            Op1Kind = Arm64OperandKind.Immediate,
+            Op2Kind = Arm64OperandKind.Immediate,
+            Op0Reg = regN,
+            Op1Imm = imm6,
+            Op2Imm = mask,
         };
     }
     
     private static Arm64Instruction EvaluateIntoFlags(uint instruction)
     {
+        var sf = instruction.TestBit(31);
+        var op = instruction.TestBit(30);
+        var sFlag = instruction.TestBit(29);
+        var opcode2 = (instruction >> 15) & 0b11_1111;
+        var sz = instruction.TestBit(14);
+        var rn = (int) (instruction >> 5) & 0b1_1111;
+        var o3 = instruction.TestBit(4);
+        var mask = instruction & 0b1111;
+        
+        //Only valid encoding is no sf, no op, S set, opcode2 == 0, o3 clear, mask == 0b1101
+        //Again this is FEAT_FlagM stuff but trivial to implement
+        if(sf)
+            throw new Arm64UndefinedInstructionException("EvaluateIntoFlags: sf == 1");
+        
+        if(op)
+            throw new Arm64UndefinedInstructionException("EvaluateIntoFlags: op == 1");
+        
+        if(!sFlag)
+            throw new Arm64UndefinedInstructionException("EvaluateIntoFlags: S == 0");
+        
+        if(opcode2 != 0)
+            throw new Arm64UndefinedInstructionException("EvaluateIntoFlags: opcode2 != 0");
+        
+        if(o3)
+            throw new Arm64UndefinedInstructionException("EvaluateIntoFlags: o3 == 1");
+        
+        if(mask != 0b1101)
+            throw new Arm64UndefinedInstructionException("EvaluateIntoFlags: mask != 0b1101");
+        
+        var regN = Arm64Register.W0 + rn;
+        var mnemonic = sz ? Arm64Mnemonic.SETF16 : Arm64Mnemonic.SETF8;
+        
         return new()
         {
-            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            Mnemonic = mnemonic,
             MnemonicCategory = Arm64MnemonicCategory.FlagMath,
+            Op0Kind = Arm64OperandKind.Register,
+            Op0Reg = regN,
         };
     }
 

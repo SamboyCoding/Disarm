@@ -99,10 +99,44 @@ internal static class Arm64DataProcessingImmediate
 
     public static Arm64Instruction AddSubtractImmediateWithTags(uint instruction)
     {
+        //Technically this is all MTE extension which isn't really supported, but it's simple enough to disassemble
+        var sf = instruction.TestBit(31);
+        var s = instruction.TestBit(29);
+        var o2 = instruction.TestBit(22);
+        
+        if(o2)
+            throw new Arm64UndefinedInstructionException("Add/subtract immediate (with tags): o2 set");
+        
+        if(!sf)
+            throw new Arm64UndefinedInstructionException("Add/subtract immediate (with tags): sf not set");
+        
+        if(s)
+            throw new Arm64UndefinedInstructionException("Add/subtract immediate (with tags): S set");
+        
+        var op = instruction.TestBit(30);
+        var uimm6 = (instruction >> 16) & 0b11_1111;
+        var op3 = (int) (instruction >> 14) & 0b11;
+        var uimm4 = (instruction >> 10) & 0b1111;
+        var rn = (int) (instruction >> 5) & 0b1_1111;
+        var rd = (int) instruction & 0b1_1111;
+        
+        var regN = Arm64Register.X0 + rn;
+        var regD = Arm64Register.X0 + rd;
+
+        uimm6 <<= 4; //Multiple of 16
+        
         return new()
         {
-            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            Mnemonic = op ? Arm64Mnemonic.SUBG : Arm64Mnemonic.ADDG,
             MnemonicCategory = Arm64MnemonicCategory.Math,
+            Op0Kind = Arm64OperandKind.Register,
+            Op1Kind = Arm64OperandKind.Register,
+            Op2Kind = Arm64OperandKind.Immediate,
+            Op3Kind = Arm64OperandKind.Immediate,
+            Op0Reg = regD,
+            Op1Reg = regN,
+            Op2Imm = uimm6,
+            Op3Imm = uimm4,
         };
     }
 

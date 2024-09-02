@@ -4,10 +4,81 @@ internal static class Arm64FloatingPoint
 {
     internal static Arm64Instruction ConversionToAndFromFixedPoint(uint instruction)
     {
+        //page 625
+        
+        var sf = instruction.TestBit(31);
+        var sFlag = instruction.TestBit(29);
+        var ptype = (instruction >> 22) & 0b11;
+        var rmode = (instruction >> 19) & 0b11;
+        var opcode = (instruction >> 16) & 0b111;
+        var scale = (instruction >> 10) & 0b11_1111;
+        var rn = (int) (instruction >> 5) & 0b11111;
+        var rd = (int) (instruction >> 0) & 0b11111;
+        
+        if(sFlag)
+            throw new Arm64UndefinedInstructionException("Floating-point conversion to/from fixed-point: S is reserved");
+        
+        if(ptype == 0b10)
+            throw new Arm64UndefinedInstructionException("Floating-point conversion to/from fixed-point: ptype 0b10 is reserved");
+        
+        if(opcode >= 0b100)
+            throw new Arm64UndefinedInstructionException($"Floating-point conversion to/from fixed-point: opcode 0x{opcode:X} (> 3) is reserved");
+        
+        if(!sf && scale < 0b10_0000)
+            throw new Arm64UndefinedInstructionException("Floating-point conversion to/from fixed-point: sf = 0 and scale < 32 is reserved");
+        
+        //Now, roughly, ignoring the reserved bits we just checked:
+        //sf is the size of the integer - 0 is 32-bit, 1 is 64-bit
+        //ptype is precision type - 0 is single, 1 is double, 2 is reserved, 3 is half
+        //rmode is rounding mode - 0 is round to nearest, 3 is round to zero. Otherwise are reserved
+        //opcode is the operation:
+        //000 - FCVT_S - Floating => fixed, signed
+        //001 - FCVT_U - Floating => fixed, unsigned
+        //010 - SCVTF - Fixed => floating, signed
+        //011 - UCVTF - Fixed => floating, unsigned
+        
+        //Note fixed => floating require rmode = 0 and floating => fixed require rmode = 3
+        
+        var mnemonic = opcode switch
+        {
+            0b000 => Arm64Mnemonic.FCVTZS,
+            0b001 => Arm64Mnemonic.FCVTZU,
+            0b010 => Arm64Mnemonic.SCVTF,
+            0b011 => Arm64Mnemonic.UCVTF,
+            _ => throw new("Impossible opcode")
+        };
+        
+        if (mnemonic is Arm64Mnemonic.FCVTZS or Arm64Mnemonic.FCVTZU && rmode != 3)
+            throw new Arm64UndefinedInstructionException($"Floating-point conversion to/from fixed-point: FCVTZS/FCVTZU requires rmode = 3 (got {rmode})");
+        
+        if(mnemonic is Arm64Mnemonic.SCVTF or Arm64Mnemonic.UCVTF && rmode != 0)
+            throw new Arm64UndefinedInstructionException($"Floating-point conversion to/from fixed-point: SCVTF/UCVTF requires rmode = 0 (got {rmode})");
+        
+        var floatingBaseReg = ptype switch
+        {
+            0b00 => Arm64Register.S0,
+            0b01 => Arm64Register.D0,
+            0b11 => Arm64Register.H0,
+            _ => throw new("Impossible ptype"),
+        };
+        
+        var intBaseReg = sf ? Arm64Register.X0 : Arm64Register.W0;
+        
+        var regD = mnemonic is Arm64Mnemonic.SCVTF or Arm64Mnemonic.UCVTF ? floatingBaseReg + rd : intBaseReg + rd;
+        var regN = mnemonic is Arm64Mnemonic.SCVTF or Arm64Mnemonic.UCVTF ? intBaseReg + rn : floatingBaseReg + rn;
+        
+        var fbits = (int) (64 - scale);
+
         return new()
         {
-            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
-            MnemonicCategory = Arm64MnemonicCategory.FloatingPointConversion, 
+            Mnemonic = mnemonic,
+            MnemonicCategory = Arm64MnemonicCategory.FloatingPointConversion,
+            Op0Kind = Arm64OperandKind.Register,
+            Op1Kind = Arm64OperandKind.Register,
+            Op2Kind = Arm64OperandKind.Immediate,
+            Op0Reg = regD,
+            Op1Reg = regN,
+            Op2Imm = fbits
         };
     }
     
