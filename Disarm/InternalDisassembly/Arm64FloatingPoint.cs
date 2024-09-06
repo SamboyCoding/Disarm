@@ -322,10 +322,48 @@ internal static class Arm64FloatingPoint
 
     public static Arm64Instruction DataProcessingThreeSource(uint instruction)
     {
+        if (instruction.TestBit(31))
+            throw new Arm64UndefinedInstructionException("Floating-point data-processing (3 source): M is reserved");
+        
+        var pType = (instruction >> 22) & 0b11; // Bits 22-23
+        var rm =  (int)(instruction >> 16) & 0b11111; // Bits 16-20
+        var ra =  (int)(instruction >> 10) & 0b11111; // Bits 10-14
+        var rn =  (int)(instruction >> 5) & 0b11111; // Bits 5-9
+        var rd =  (int)instruction & 0b11111; // Bits 0-4
+
+        var (Rm, Ra, Rn, Rd) = pType switch
+        {
+            0b00 => (Arm64Register.S0 + rm, Arm64Register.S0 + ra, Arm64Register.S0 + rn, Arm64Register.S0 + rd),
+            0b01 => (Arm64Register.D0 + rm, Arm64Register.D0 + ra, Arm64Register.D0 + rn, Arm64Register.D0 + rd),
+            0b11 => (Arm64Register.H0 + rm, Arm64Register.H0 + ra, Arm64Register.H0 + rn, Arm64Register.H0 + rd),
+            _ => throw new Arm64UndefinedInstructionException("Impossible pType")
+        };
+        
+        var o1 = (instruction >> 21) & 1;
+        var o2 = (instruction >> 15) & 1;
+
         return new()
         {
-            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
-            MnemonicCategory =  Arm64MnemonicCategory.FloatingPointMath
+            Mnemonic = (o1, o2) switch
+            {
+                (0, 0) => Arm64Mnemonic.FMADD,
+                (0, 1) => Arm64Mnemonic.FMSUB,
+                (1, 0) => Arm64Mnemonic.FNMADD,
+                (1, 1) => Arm64Mnemonic.FNMSUB,
+                _ => throw new Arm64UndefinedInstructionException("Impossible opcode")
+            },
+            MnemonicCategory = Arm64MnemonicCategory.FloatingPointMath,
+            // <Sd>, <Sn>, <Sm>, <Sa>
+            // <Dd>, <Dn>, <Dm>, <Da>
+            // <Hd>, <Hn>, <Hm>, <Ha>
+            Op0Kind = Arm64OperandKind.Register,
+            Op1Kind = Arm64OperandKind.Register,
+            Op2Kind = Arm64OperandKind.Register,
+            Op3Kind = Arm64OperandKind.Register,
+            Op0Reg = Rd,
+            Op1Reg = Rn,
+            Op2Reg = Rm,
+            Op3Reg = Ra
         };
     }
 
@@ -442,10 +480,43 @@ internal static class Arm64FloatingPoint
 
     public static Arm64Instruction ConditionalCompare(uint instruction)
     {
+        if (instruction.TestBit(31))
+            throw new Arm64UndefinedInstructionException("Floating-point data-processing (3 source): M is reserved");
+        
+        var pType = (instruction >> 22) & 0b11; // Bits 22-23
+        var rm =  (int)(instruction >> 16) & 0b11111; // Bits 16-20
+        var rn =  (int)(instruction >> 5) & 0b11111; // Bits 5-9
+
+        var (Rm, Rn) = pType switch
+        {
+            0b00 => (Arm64Register.S0 + rm, Arm64Register.S0 + rn),
+            0b01 => (Arm64Register.D0 + rm, Arm64Register.D0 + rn),
+            0b11 => (Arm64Register.H0 + rm, Arm64Register.H0 + rn),
+            _ => throw new Arm64UndefinedInstructionException("Impossible pType")
+        };
+        
+        var op = (instruction >> 4) & 1; // Bit 4
+        var nzcv = instruction & 0b1111;
+        var cond = (instruction >> 12) & 0b1111; // Bits 12-15
+        var condition = (Arm64ConditionCode)cond;
+
         return new()
         {
-            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
-            MnemonicCategory = Arm64MnemonicCategory.Comparison,
+            Mnemonic = op switch
+            {
+                0 => Arm64Mnemonic.FCCMP,
+                1 => Arm64Mnemonic.FCCMPE,
+                _ => throw new Arm64UndefinedInstructionException("Impossible opcode")
+            },
+            MnemonicCategory = Arm64MnemonicCategory.FloatingPointComparison,
+            // <Hn>, <Hm>, #<nzcv>, <cond>
+            Op0Kind = Arm64OperandKind.Register,
+            Op1Kind = Arm64OperandKind.Register,
+            Op2Kind = Arm64OperandKind.Immediate,
+            Op0Reg = Rn,
+            Op1Reg = Rm,
+            Op2Imm = nzcv,
+            FinalOpConditionCode = condition,
         };
     }
 
