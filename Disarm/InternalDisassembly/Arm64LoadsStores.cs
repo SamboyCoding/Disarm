@@ -68,19 +68,132 @@ internal static class Arm64LoadsStores
 
     private static Arm64Instruction DisassembleLoadStoreMemoryTags(uint instruction)
     {
-        return new()
+        var opc = (instruction >> 22) & 0b11; // Bits 22-23
+        var offset = Arm64CommonUtils.SignExtend((instruction >> 12) & 0b1_1111_1111, 9, 64) << (1 << 4); // Bits 12-20
+        var op2 = (instruction >> 10) & 0b11; // Bits 10-11
+        var rn = (int)(instruction >> 5) & 0b1_1111; // Bits 5-9
+        var rt = (int)instruction & 0b1_1111; // Bits 0-5
+        
+        return opc switch
         {
-            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
-            MnemonicCategory = Arm64MnemonicCategory.MemoryTagging,
+            0b00 when offset != 0 => new()
+            {
+                Mnemonic = Arm64Mnemonic.STG,
+                MnemonicCategory = Arm64MnemonicCategory.MemoryTagging,
+                MemIndexMode = op2 switch
+                {
+                    0b01 => MemoryIndexMode.PostIndex,
+                    0b10 => MemoryIndexMode.Offset,
+                    0b11 => MemoryIndexMode.PreIndex,
+                    _ => throw new Arm64UndefinedInstructionException("Bad memory index mode")
+                },
+                MemOffset = offset,
+                Op0Kind = Arm64OperandKind.Register,
+                Op1Kind = Arm64OperandKind.Register,
+                Op0Reg = Arm64Register.X0 + rn,
+                Op1Reg = Arm64Register.X0 + rt
+            },
+            0b00 when offset == 0 => new()
+            {
+                Mnemonic = Arm64Mnemonic.STZGM,
+                MnemonicCategory = Arm64MnemonicCategory.MemoryTagging,
+                Op0Kind = Arm64OperandKind.Register,
+                Op1Kind = Arm64OperandKind.Register,
+                Op0Reg = Arm64Register.X0 + rn,
+                Op1Reg = Arm64Register.X0 + rt
+            },
+            0b01 when op2 == 0 =>  new()
+            {
+                Mnemonic = Arm64Mnemonic.LDG,
+                MnemonicCategory = Arm64MnemonicCategory.MemoryTagging,
+                MemIndexMode = MemoryIndexMode.Offset,
+                MemOffset = offset,
+                Op0Kind = Arm64OperandKind.Register,
+                Op1Kind = Arm64OperandKind.Register,
+                Op0Reg = Arm64Register.X0 + rn,
+                Op1Reg = Arm64Register.X0 + rt
+            },
+            0b01 when op2 != 0 =>  new()
+            {
+                Mnemonic = Arm64Mnemonic.STZG,
+                MnemonicCategory = Arm64MnemonicCategory.MemoryTagging,
+                MemIndexMode = op2 switch
+                {
+                    0b01 => MemoryIndexMode.PostIndex,
+                    0b10 => MemoryIndexMode.Offset,
+                    0b11 => MemoryIndexMode.PreIndex,
+                    _ => throw new Arm64UndefinedInstructionException("Bad memory index mode")
+                },
+                MemOffset = offset,
+                Op0Kind = Arm64OperandKind.Register,
+                Op1Kind = Arm64OperandKind.Register,
+                Op0Reg = Arm64Register.X0 + rn,
+                Op1Reg = Arm64Register.X0 + rt
+            },
+            0b10 when offset != 0 =>  new()
+            {
+                Mnemonic = Arm64Mnemonic.ST2G,
+                MnemonicCategory = Arm64MnemonicCategory.MemoryTagging,
+                MemIndexMode = op2 switch
+                {
+                    0b01 => MemoryIndexMode.PostIndex,
+                    0b10 => MemoryIndexMode.Offset,
+                    0b11 => MemoryIndexMode.PreIndex,
+                    _ => throw new Arm64UndefinedInstructionException("Bad memory index mode")
+                },
+                MemOffset = offset,
+                Op0Kind = Arm64OperandKind.Register,
+                Op1Kind = Arm64OperandKind.Register,
+                Op0Reg = Arm64Register.X0 + rn,
+                Op1Reg = Arm64Register.X0 + rt
+            },
+            0b10 when offset == 0 && op2 == 0 =>  new()
+            {
+                Mnemonic = Arm64Mnemonic.STGM,
+                MnemonicCategory = Arm64MnemonicCategory.MemoryTagging,
+                Op0Kind = Arm64OperandKind.Register,
+                Op1Kind = Arm64OperandKind.Register,
+                Op0Reg = Arm64Register.X0 + rn,
+                Op1Reg = Arm64Register.X0 + rt
+            },
+            0b11 when offset != 0 =>  new()
+            {
+                Mnemonic = Arm64Mnemonic.STZ2G,
+                MnemonicCategory = Arm64MnemonicCategory.MemoryTagging,
+                MemIndexMode = op2 switch
+                {
+                    0b01 => MemoryIndexMode.PostIndex,
+                    0b10 => MemoryIndexMode.Offset,
+                    0b11 => MemoryIndexMode.PreIndex,
+                    _ => throw new Arm64UndefinedInstructionException("Bad memory index mode")
+                },
+                MemOffset = offset,
+                Op0Kind = Arm64OperandKind.Register,
+                Op1Kind = Arm64OperandKind.Register,
+                Op0Reg = Arm64Register.X0 + rn,
+                Op1Reg = Arm64Register.X0 + rt
+            },
+            0b11 when offset == 0 && op2 == 0 =>  new()
+            {
+                Mnemonic = Arm64Mnemonic.LDGM,
+                MnemonicCategory = Arm64MnemonicCategory.MemoryTagging,
+                Op0Kind = Arm64OperandKind.Register,
+                Op1Kind = Arm64OperandKind.Register,
+                Op0Reg = Arm64Register.X0 + rn,
+                Op1Reg = Arm64Register.X0 + rt
+            },
+            _ => throw new Arm64UndefinedInstructionException("Unallocated")
         };
     }
 
     private static Arm64Instruction DisassembleLoadStoreExclusiveRegOrderedOrCompareSwap(uint instruction)
     {
         //Load/store exclusive register, load/store ordered, or compare + swap
+        var op0 = (instruction >> 28) & 0b1111; //Bits 28-31
         var op1 = instruction.TestBit(26); //Bit 26
         var op2 = (instruction >> 23) & 0b11; //Bits 23-24
         var op3 = (instruction >> 16) & 0b11_1111; //Bits 16-21
+        var op4 = (instruction >> 10) & 0b11; // Bits 10-11
         
         if(op1)
             throw new Arm64UndefinedInstructionException("Load/store (exclusive register|ordered)|compare/swap: op1 set");
@@ -88,8 +201,9 @@ internal static class Arm64LoadsStores
         if(op2 == 0 && op3.TestBit(6))
             throw new Arm64UndefinedInstructionException("Load/store (exclusive register|ordered)|compare/swap: op2=0, op3 hi bit set");
 
-        if (op2 == 0)
-            return LoadStoreExclusiveRegister(instruction);
+        // op0 xx00 | op1 0 | op2 0x | op3 empty | op4 empty | Load/store exclusive
+        if ((op0 & 0b11) == 0 && !op1 && !op2.TestBit(1)) 
+            return LoadStoreExclusive(instruction);
         
         if(op2 != 1)
             throw new Arm64UndefinedInstructionException("Load/store (exclusive register|ordered)|compare/swap: op2 was not 0 or 1");
@@ -100,7 +214,7 @@ internal static class Arm64LoadsStores
         return LoadStoreOrdered(instruction);
     }
     
-    private static Arm64Instruction LoadStoreExclusiveRegister(uint instruction)
+    private static Arm64Instruction LoadStoreExclusive(uint instruction)
     {
         return new()
         {
@@ -143,15 +257,56 @@ internal static class Arm64LoadsStores
 
         return op4.TestBit(0)
             ? MemoryCopyOrSet(instruction)
-            : LdaprOrStlr(instruction);
+            : LdarpOrStlr(instruction);
     }
     
     private static Arm64Instruction LoadRegisterLiteral(uint instruction)
     {
-        return new()
+        var opc = (instruction >> 30) & 0b11; // Bits 30-31
+        var v = instruction.TestBit(26);
+        var imm19 = (instruction >> 5) & 0b111_1111_1111_1111_1111; // Bits 5-23
+        var label = Arm64CommonUtils.SignExtend(imm19, 19, 64);
+        var rt = (int)instruction & 0b1_1111;
+        
+        return opc switch
         {
-            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
-            MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister, 
+            (0b00 or 0b01) when !v => new()
+            {
+                Mnemonic = Arm64Mnemonic.LDR,
+                MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister, 
+                Op0Kind = Arm64OperandKind.Register,
+                Op1Kind = Arm64OperandKind.ImmediatePcRelative,
+                Op0Reg = (opc == 0b00 ? Arm64Register.W0 : Arm64Register.X0) + rt,
+                Op1Imm = label
+            },
+            0b10 when !v =>  new()
+            {
+                Mnemonic = Arm64Mnemonic.LDRSW,
+                MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister, 
+                Op0Kind = Arm64OperandKind.Register,
+                Op1Kind = Arm64OperandKind.ImmediatePcRelative,
+                Op0Reg = Arm64Register.X0 + rt,
+                Op1Imm = label
+            },
+            0b11 when !v =>  new()
+            {
+                Mnemonic = Arm64Mnemonic.PRFM,
+                MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister, 
+                Op0Kind = Arm64OperandKind.Immediate,
+                Op1Kind = Arm64OperandKind.ImmediatePcRelative,
+                Op0Imm = rt,
+                Op1Imm = label
+            },
+            (0b00 or 0b01 or 0b10) when v => new()
+            {
+                Mnemonic = Arm64Mnemonic.LDR,
+                MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister, 
+                Op0Kind = Arm64OperandKind.Register,
+                Op1Kind = Arm64OperandKind.ImmediatePcRelative,
+                Op0Reg = (opc == 0b00 ? Arm64Register.S0 : opc == 0b01 ? Arm64Register.D0 : Arm64Register.V0) + rt,
+                Op1Imm = label
+            },
+            _ => throw new Arm64UndefinedInstructionException("Unallocated")
         };
     }
     
@@ -164,8 +319,9 @@ internal static class Arm64LoadsStores
         };
     }
     
-    private static Arm64Instruction LdaprOrStlr(uint instruction)
+    private static Arm64Instruction LdarpOrStlr(uint instruction)
     {
+        // FEAT_LRCPC2
         return new()
         {
             Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
@@ -319,10 +475,124 @@ internal static class Arm64LoadsStores
 
     private static Arm64Instruction LoadStoreNoAllocatePairs(uint instruction)
     {
-        return new()
+        var opc = (instruction >> 30) & 0b11; // Bits 30-31
+        var v = instruction.TestBit(26);
+        var l = instruction.TestBit(22);
+
+        var imm7 = (instruction >> 15) & 0b111_1111; // Bits - 15-21
+        var rt2 = (int)(instruction >> 10) & 0b1_1111; // Bits - 10-14
+        var rn = (int)(instruction >> 5) & 0b1_1111; // Bits - 5-9
+        var rt = (int)instruction & 0b1_1111; // Bits - 0-14
+
+        var offset = Arm64CommonUtils.SignExtend(imm7, 7, 64) << (2 + (l ? 1 : 0));
+        
+        return opc switch
         {
-            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
-            MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister,
+            (0b00 or 0b10) when !v && !l => new()
+            {
+                Mnemonic = Arm64Mnemonic.STNP,
+                MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister,
+                MemIndexMode = MemoryIndexMode.Offset,
+                MemOffset = offset,
+                MemBase = (opc == 0b00 ? Arm64Register.W0 : Arm64Register.X0) + rn,
+                Op0Kind = Arm64OperandKind.Register,
+                Op1Kind = Arm64OperandKind.Register,
+                Op2Kind = Arm64OperandKind.Memory,
+                Op0Reg = (opc == 0b00 ? Arm64Register.W0 : Arm64Register.X0) + rt,
+                Op1Reg = (opc == 0b00 ? Arm64Register.W0 : Arm64Register.X0) + rt2
+            },
+            (0b00 or 0b10) when !v && l => new()
+            {
+                Mnemonic = Arm64Mnemonic.LDNP,
+                MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister,
+                MemIndexMode = MemoryIndexMode.Offset,
+                MemOffset = offset,
+                MemBase = (opc == 0b00 ? Arm64Register.W0 : Arm64Register.X0) + rn,
+                Op0Kind = Arm64OperandKind.Register,
+                Op1Kind = Arm64OperandKind.Register,
+                Op2Kind = Arm64OperandKind.Memory,
+                Op0Reg = (opc == 0b00 ? Arm64Register.W0 : Arm64Register.X0) + rt,
+                Op1Reg = (opc == 0b00 ? Arm64Register.W0 : Arm64Register.X0) + rt2
+            },
+            0b00 when v && !l => new()
+            {
+                Mnemonic = Arm64Mnemonic.STNP,
+                MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister,
+                MemIndexMode = MemoryIndexMode.Offset,
+                MemOffset = offset,
+                MemBase = Arm64Register.X0 + rn,
+                Op0Kind = Arm64OperandKind.Register,
+                Op1Kind = Arm64OperandKind.Register,
+                Op2Kind = Arm64OperandKind.Memory,
+                Op0Reg = Arm64Register.S0 + rt,
+                Op1Reg = Arm64Register.S0 + rt2
+            },
+            0b01 when v && !l => new()
+            {
+                Mnemonic = Arm64Mnemonic.STNP,
+                MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister,
+                MemIndexMode = MemoryIndexMode.Offset,
+                MemOffset = offset,
+                MemBase = Arm64Register.X0 + rn,
+                Op0Kind = Arm64OperandKind.Register,
+                Op1Kind = Arm64OperandKind.Register,
+                Op2Kind = Arm64OperandKind.Memory,
+                Op0Reg = Arm64Register.D0 + rt,
+                Op1Reg = Arm64Register.D0 + rt2
+            },
+            0b10 when v && !l => new()
+            {
+                Mnemonic = Arm64Mnemonic.STNP,
+                MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister,
+                MemIndexMode = MemoryIndexMode.Offset,
+                MemOffset = offset,
+                MemBase = Arm64Register.X0 + rn,
+                Op0Kind = Arm64OperandKind.Register,
+                Op1Kind = Arm64OperandKind.Register,
+                Op2Kind = Arm64OperandKind.Memory,
+                Op0Reg = Arm64Register.V0 + rt, // aka Q0
+                Op1Reg = Arm64Register.V0 + rt2 // aka Q0
+            },
+            0b00 when v && l => new()
+            {
+                Mnemonic = Arm64Mnemonic.LDNP,
+                MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister,
+                MemIndexMode = MemoryIndexMode.Offset,
+                MemOffset = offset,
+                MemBase = Arm64Register.X0 + rn,
+                Op0Kind = Arm64OperandKind.Register,
+                Op1Kind = Arm64OperandKind.Register,
+                Op2Kind = Arm64OperandKind.Memory,
+                Op0Reg = Arm64Register.S0 + rt,
+                Op1Reg = Arm64Register.S0 + rt2
+            },
+            0b01 when v && l => new()
+            {
+                Mnemonic = Arm64Mnemonic.LDNP,
+                MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister,
+                MemIndexMode = MemoryIndexMode.Offset,
+                MemOffset = offset,
+                MemBase = Arm64Register.X0 + rn,
+                Op0Kind = Arm64OperandKind.Register,
+                Op1Kind = Arm64OperandKind.Register,
+                Op2Kind = Arm64OperandKind.Memory,
+                Op0Reg = Arm64Register.D0 + rt,
+                Op1Reg = Arm64Register.D0 + rt2
+            },
+            0b10 when v && l => new()
+            {
+                Mnemonic = Arm64Mnemonic.LDNP,
+                MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister,
+                MemIndexMode = MemoryIndexMode.Offset,
+                MemOffset = offset,
+                MemBase = Arm64Register.X0 + rn,
+                Op0Kind = Arm64OperandKind.Register,
+                Op1Kind = Arm64OperandKind.Register,
+                Op2Kind = Arm64OperandKind.Memory,
+                Op0Reg = Arm64Register.V0 + rt, // aka Q0
+                Op1Reg = Arm64Register.V0 + rt2 // aka Q0
+            },
+            _ => throw new Arm64UndefinedInstructionException("Unallocated")
         };
     }
 
