@@ -143,8 +143,11 @@ internal static class Arm64Branches
         switch (op3)
         {
             //ret. but sanity check op4
-            case 0 when op4 == 0:
+            case 0:
             {
+                if(op4 != 0)
+                    throw new Arm64UndefinedInstructionException($"RET with op4 != 0: {op4}");
+                
                 //By default, ret returns to the caller, the address of which is in X30, however X30 can be overriden by providing a register in rn.
                 //As X30 is the default, we don't need to disassemble to it explicitly.
                 if (rn == 30)
@@ -158,13 +161,25 @@ internal static class Arm64Branches
                     MnemonicCategory = Arm64MnemonicCategory.Return,
                 };
             }
-            case 0b000010 when rn == 0b11111 && op4 == 0b11111:
+            case 0b000010: //FEAT_PAUTH
+                if(rn != 0b11111)
+                    throw new Arm64UndefinedInstructionException($"RETAA with rn != 0b11111: {rn}");
+                
+                if(op4 != 0b11111)
+                    throw new Arm64UndefinedInstructionException($"RETAA with op4 != 0b11111: {op4}");
+                
                 return new()
                 {
                     Mnemonic = Arm64Mnemonic.RETAA,
                     MnemonicCategory = Arm64MnemonicCategory.Return, 
                 };
-            case 0b000011 when rn == 0b11111 && op4 == 0b11111:
+            case 0b000011: //FEAT_PAUTH
+                if(rn != 0b11111)
+                    throw new Arm64UndefinedInstructionException($"RETAB with rn != 0b11111: {rn}");
+                
+                if(op4 != 0b11111)
+                    throw new Arm64UndefinedInstructionException($"RETAB with op4 != 0b11111: {op4}");
+                
                 return new()
                 {
                     Mnemonic = Arm64Mnemonic.RETAB,
@@ -186,8 +201,8 @@ internal static class Arm64Branches
         {
             var isKeyA = op3 == 0b10;
             var isKeyB = op3 == 0b11;
-            var m = instruction.TestBit(10);
-            var rm = (int)op4; //Bits 5-9
+            var m = instruction.TestBit(10); //same as isKeyB
+            var rm = (int)op4; //Bits 0-4
 
             return opc switch
             {

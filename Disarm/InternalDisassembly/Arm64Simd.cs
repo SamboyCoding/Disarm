@@ -117,6 +117,8 @@ internal static class Arm64Simd
             Op1Kind = Arm64OperandKind.Register,
             Op0Reg = Arm64Register.V0 + rd,
             Op1Reg = Arm64Register.V0 + rn,
+            Op0Arrangement = Arm64ArrangementSpecifier.SixteenB,
+            Op1Arrangement = Arm64ArrangementSpecifier.SixteenB,
         };
     }
 
@@ -144,13 +146,23 @@ internal static class Arm64Simd
             Op1Kind = Arm64OperandKind.Register,
             Op0Reg = opcode switch
             {
-                0b00001 => Arm64Register.V0 + rd,
-                _ => Arm64Register.S0 + rd,
+                0b00000 => Arm64Register.S0 + rd,
+                _ => Arm64Register.V0 + rd,
             },
             Op1Reg = opcode switch
             {
-                0b00001 => Arm64Register.V0 + rn,
-                _ => Arm64Register.S0 + rn,
+                0b00000 => Arm64Register.S0 + rn,
+                _ => Arm64Register.V0 + rn,
+            },
+            Op0Arrangement = opcode switch
+            {
+                0b00000 => Arm64ArrangementSpecifier.None,
+                _ => Arm64ArrangementSpecifier.FourS,
+            },
+            Op1Arrangement = opcode switch
+            {
+                0b00000 => Arm64ArrangementSpecifier.None,
+                _ => Arm64ArrangementSpecifier.FourS,
             },
         };
     }
@@ -189,7 +201,18 @@ internal static class Arm64Simd
                 0b000 or 0b001 or 0b010 => Arm64Register.S0 + rn,
                 _ => Arm64Register.V0 + rn,
             },
-            Op3Reg = Arm64Register.V0 + rm,
+            Op2Reg = Arm64Register.V0 + rm,
+            Op0Arrangement = opcode switch
+            {
+                0b011 or 0b110 => Arm64ArrangementSpecifier.FourS,
+                _ => Arm64ArrangementSpecifier.None,
+            },
+            Op1Arrangement = opcode switch
+            {
+                0b011 or 0b110 => Arm64ArrangementSpecifier.FourS,
+                _ => Arm64ArrangementSpecifier.None,
+            },
+            Op2Arrangement = Arm64ArrangementSpecifier.FourS,
         };
     }
 

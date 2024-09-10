@@ -44,11 +44,14 @@ internal static class Arm64Hints
                 Mnemonic = Arm64Mnemonic.DGH,  
                 MnemonicCategory = Arm64MnemonicCategory.Hint,
             },
+            //FEAT_PAUTH
             0b0000 when op2 == 0b111 => new()
             {
                 Mnemonic = Arm64Mnemonic.XPACLRI,  
                 MnemonicCategory = Arm64MnemonicCategory.Hint,
             },
+            
+            //TODO Remaining hints (crm != 0)
             _ => new()
             {
                 Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,  

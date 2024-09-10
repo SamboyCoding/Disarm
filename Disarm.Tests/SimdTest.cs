@@ -96,4 +96,117 @@ public class SimdTest : BaseDisarmTest
         Assert.Equal(Arm64Register.S0, result.Op0Reg);
         Assert.Equal(-1, result.Op1FpImm);
     }
+
+    [Fact]
+    public void TestCryptoAes()
+    {
+        var insn = DisassembleAndCheckMnemonic(0x4E284820, Arm64Mnemonic.AESE);
+        
+        Assert.Equal(Arm64OperandKind.Register, insn.Op0Kind);
+        Assert.Equal(Arm64OperandKind.Register, insn.Op1Kind);
+        
+        Assert.Equal(Arm64Register.V0, insn.Op0Reg);
+        Assert.Equal(Arm64Register.V1, insn.Op1Reg);
+        
+        Assert.Equal(Arm64ArrangementSpecifier.SixteenB, insn.Op0Arrangement);
+        Assert.Equal(Arm64ArrangementSpecifier.SixteenB, insn.Op1Arrangement);
+        
+        Assert.Equal("0x00000000 AESE V0.16B, V1.16B", insn.ToString());
+
+        DisassembleAndCheckMnemonic(0x4E285820, Arm64Mnemonic.AESD);
+        DisassembleAndCheckMnemonic(0x4E286820, Arm64Mnemonic.AESMC);
+        DisassembleAndCheckMnemonic(0x4E287820, Arm64Mnemonic.AESIMC);
+    }
+
+    [Fact]
+    public void TestCryptoTwoRegSha()
+    {
+        var insn = DisassembleAndCheckMnemonic(0x5E280820, Arm64Mnemonic.SHA1H);
+        
+        Assert.Equal(Arm64OperandKind.Register, insn.Op0Kind);
+        Assert.Equal(Arm64OperandKind.Register, insn.Op1Kind);
+        
+        Assert.Equal(Arm64Register.S0, insn.Op0Reg);
+        Assert.Equal(Arm64Register.S1, insn.Op1Reg);
+        
+        Assert.Equal("0x00000000 SHA1H S0, S1", insn.ToString());
+        
+        insn = DisassembleAndCheckMnemonic(0x5E281820, Arm64Mnemonic.SHA1SU1);
+        
+        Assert.Equal(Arm64Register.V0, insn.Op0Reg);
+        Assert.Equal(Arm64Register.V1, insn.Op1Reg);
+        
+        Assert.Equal(Arm64ArrangementSpecifier.FourS, insn.Op0Arrangement);
+        Assert.Equal(Arm64ArrangementSpecifier.FourS, insn.Op1Arrangement);
+        
+        Assert.Equal("0x00000000 SHA1SU1 V0.4S, V1.4S", insn.ToString());
+        
+        insn = DisassembleAndCheckMnemonic(0x5E282820, Arm64Mnemonic.SHA256SU0);
+        
+        Assert.Equal(Arm64Register.V0, insn.Op0Reg);
+        Assert.Equal(Arm64Register.V1, insn.Op1Reg);
+        
+        Assert.Equal(Arm64ArrangementSpecifier.FourS, insn.Op0Arrangement);
+        Assert.Equal(Arm64ArrangementSpecifier.FourS, insn.Op1Arrangement);
+        
+        Assert.Equal("0x00000000 SHA256SU0 V0.4S, V1.4S", insn.ToString());
+    }
+
+    [Fact]
+    public void TestCryptoThreeRegSha()
+    {
+        var insn = DisassembleAndCheckMnemonic(0x5E020020, Arm64Mnemonic.SHA1C);
+        
+        Assert.Equal(Arm64OperandKind.Register, insn.Op0Kind);
+        Assert.Equal(Arm64OperandKind.Register, insn.Op1Kind);
+        Assert.Equal(Arm64OperandKind.Register, insn.Op2Kind);
+        
+        Assert.Equal(Arm64Register.V0, insn.Op0Reg);
+        Assert.Equal(Arm64Register.S1, insn.Op1Reg);
+        Assert.Equal(Arm64Register.V2, insn.Op2Reg);
+        
+        Assert.Equal(Arm64ArrangementSpecifier.FourS, insn.Op2Arrangement);
+        
+        Assert.Equal("0x00000000 SHA1C V0, S1, V2.4S", insn.ToString());
+        
+        insn = DisassembleAndCheckMnemonic(0x5E021020, Arm64Mnemonic.SHA1P);
+        
+        Assert.Equal("0x00000000 SHA1P V0, S1, V2.4S", insn.ToString());
+        
+        insn = DisassembleAndCheckMnemonic(0x5E022020, Arm64Mnemonic.SHA1M);
+        
+        Assert.Equal("0x00000000 SHA1M V0, S1, V2.4S", insn.ToString());
+        
+        insn = DisassembleAndCheckMnemonic(0x5E023020, Arm64Mnemonic.SHA1SU0);
+        
+        Assert.Equal(Arm64Register.V0, insn.Op0Reg);
+        Assert.Equal(Arm64Register.V1, insn.Op1Reg);
+        Assert.Equal(Arm64Register.V2, insn.Op2Reg);
+        
+        Assert.Equal(Arm64ArrangementSpecifier.FourS, insn.Op0Arrangement);
+        Assert.Equal(Arm64ArrangementSpecifier.FourS, insn.Op1Arrangement);
+        Assert.Equal(Arm64ArrangementSpecifier.FourS, insn.Op2Arrangement);
+        
+        Assert.Equal("0x00000000 SHA1SU0 V0.4S, V1.4S, V2.4S", insn.ToString());
+        
+        insn = DisassembleAndCheckMnemonic(0x5E024020, Arm64Mnemonic.SHA256H);
+        
+        Assert.Equal("0x00000000 SHA256H V0, V1, V2.4S", insn.ToString());
+        
+        insn = DisassembleAndCheckMnemonic(0x5E025020, Arm64Mnemonic.SHA256H2);
+        
+        Assert.Equal("0x00000000 SHA256H2 V0, V1, V2.4S", insn.ToString());
+        
+        insn = DisassembleAndCheckMnemonic(0x5E026020, Arm64Mnemonic.SHA256SU1);
+        
+        Assert.Equal(Arm64Register.V0, insn.Op0Reg);
+        Assert.Equal(Arm64Register.V1, insn.Op1Reg);
+        Assert.Equal(Arm64Register.V2, insn.Op2Reg);
+        
+        Assert.Equal(Arm64ArrangementSpecifier.FourS, insn.Op0Arrangement);
+        Assert.Equal(Arm64ArrangementSpecifier.FourS, insn.Op1Arrangement);
+        Assert.Equal(Arm64ArrangementSpecifier.FourS, insn.Op2Arrangement);
+        
+        Assert.Equal("0x00000000 SHA256SU1 V0.4S, V1.4S, V2.4S", insn.ToString());
+    }
 }

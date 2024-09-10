@@ -132,7 +132,10 @@ public struct Arm64Instruction
 
         if (MnemonicConditionCode != Arm64ConditionCode.NONE)
             sb.Append('.').Append(MnemonicConditionCode);
-            
+        
+        if(Op0Kind == Arm64OperandKind.None)
+            goto doneops;
+        
         sb.Append(' ');
 
         //Ew yes I'm using goto.
