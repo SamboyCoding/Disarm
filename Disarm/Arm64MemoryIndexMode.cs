@@ -1,6 +1,6 @@
 ﻿namespace Disarm;
 
-public enum MemoryIndexMode
+public enum Arm64MemoryIndexMode
 {
     PreIndex,
     PostIndex,

@@ -209,4 +209,20 @@ public class SimdTest : BaseDisarmTest
         
         Assert.Equal("0x00000000 SHA256SU1 V0.4S, V1.4S, V2.4S", insn.ToString());
     }
+
+    [Fact]
+    public void TestAdvancedSimdThreeSame()
+    {
+        var insn = DisassembleAndCheckMnemonic(0x0EA21C20, Arm64Mnemonic.ORR);
+        
+        Assert.Equal(Arm64OperandKind.Register, insn.Op0Kind);
+        Assert.Equal(Arm64OperandKind.Register, insn.Op1Kind);
+        Assert.Equal(Arm64OperandKind.Register, insn.Op2Kind);
+        
+        Assert.Equal(Arm64Register.V0, insn.Op0Reg);
+        Assert.Equal(Arm64Register.V1, insn.Op1Reg);
+        Assert.Equal(Arm64Register.V2, insn.Op2Reg);
+        
+        Assert.Equal("0x00000000 ORR V0.8B, V1.8B, V2.8B", insn.ToString());
+    }
 }

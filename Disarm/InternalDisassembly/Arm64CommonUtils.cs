@@ -8,6 +8,9 @@ namespace Disarm.InternalDisassembly;
 /// </summary>
 internal static class Arm64CommonUtils
 {
+    public const int LOG2_TAG_GRANULE = 4;
+    public const int TAG_GRANULE = 1 << LOG2_TAG_GRANULE;
+    
     /// <summary>
     /// Extends the given bit array to the given length by continuously adding the leftmost bit to the left until the length is reached. 
     /// </summary>
@@ -20,7 +23,7 @@ internal static class Arm64CommonUtils
 
         var startOffset = size - value.Length;
         //Copy bottom n bits of value to result
-        for (var i = startOffset; i < size - 1; i++)
+        for (var i = startOffset; i < size; i++)
         {
             result[i] = value[i - startOffset];
         }
