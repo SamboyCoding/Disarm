@@ -16,22 +16,27 @@ public struct Arm64Instruction
         Op1Kind = Arm64OperandKind.None;
         Op2Kind = Arm64OperandKind.None;
         Op3Kind = Arm64OperandKind.None;
+        Op4Kind = Arm64OperandKind.None;
         Op0Reg = Arm64Register.INVALID;
         Op1Reg = Arm64Register.INVALID;
         Op2Reg = Arm64Register.INVALID;
         Op3Reg = Arm64Register.INVALID;
+        Op4Reg = Arm64Register.INVALID;
         Op0Imm = 0;
         Op1Imm = 0;
         Op2Imm = 0;
         Op3Imm = 0;
+        Op4Imm = 0;
         Op0FpImm = double.NaN;
         Op1FpImm = double.NaN;
         Op2FpImm = double.NaN;
         Op3FpImm = double.NaN;
+        Op4FpImm = double.NaN;
         Op0Arrangement = Arm64ArrangementSpecifier.None;
         Op1Arrangement = Arm64ArrangementSpecifier.None;
         Op2Arrangement = Arm64ArrangementSpecifier.None;
         Op3Arrangement = Arm64ArrangementSpecifier.None;
+        Op4Arrangement = Arm64ArrangementSpecifier.None;
         MemBase = Arm64Register.INVALID;
         MemAddendReg = Arm64Register.INVALID;
         MemIndexMode = MemoryIndexMode.Offset;
@@ -41,6 +46,7 @@ public struct Arm64Instruction
         Op1VectorElement = default;
         Op2VectorElement = default;
         Op3VectorElement = default;
+        Op4VectorElement = default;
         
         //These lines are the ONLY reason this constructor needs to exist because they define 0 as a valid value.
         MnemonicConditionCode = Arm64ConditionCode.NONE;
@@ -53,6 +59,7 @@ public struct Arm64Instruction
         Op1ShiftType = Arm64ShiftType.NONE;
         Op2ShiftType = Arm64ShiftType.NONE;
         Op3ShiftType = Arm64ShiftType.NONE;
+        Op4ShiftType = Arm64ShiftType.NONE;
     }
 
     public ulong Address { get; internal set; }
@@ -64,31 +71,38 @@ public struct Arm64Instruction
     public Arm64OperandKind Op1Kind { get; internal set; }
     public Arm64OperandKind Op2Kind { get; internal set; }
     public Arm64OperandKind Op3Kind { get; internal set; }
+    public Arm64OperandKind Op4Kind { get; internal set; }
 
     public Arm64Register Op0Reg { get; internal set; }
     public Arm64Register Op1Reg { get; internal set; }
     public Arm64Register Op2Reg { get; internal set; }
     public Arm64Register Op3Reg { get; internal set; }
+    public Arm64Register Op4Reg { get; internal set; }
     public Arm64VectorElement Op0VectorElement { get; internal set; }
     public Arm64VectorElement Op1VectorElement { get; internal set; }
     public Arm64VectorElement Op2VectorElement { get; internal set; }
     public Arm64VectorElement Op3VectorElement { get; internal set; }
+    public Arm64VectorElement Op4VectorElement { get; internal set; }
     public long Op0Imm { get; internal set; }
     public long Op1Imm { get; internal set; }
     public long Op2Imm { get; internal set; }
     public long Op3Imm { get; internal set; }
+    public long Op4Imm { get; internal set; }
     public double Op0FpImm { get; internal set; }
     public double Op1FpImm { get; internal set; }
     public double Op2FpImm { get; internal set; }
     public double Op3FpImm { get; internal set; }
+    public double Op4FpImm { get; internal set; }
     public Arm64ArrangementSpecifier Op0Arrangement { get; internal set; }
     public Arm64ArrangementSpecifier Op1Arrangement { get; internal set; }
     public Arm64ArrangementSpecifier Op2Arrangement { get; internal set; }
     public Arm64ArrangementSpecifier Op3Arrangement { get; internal set; }
+    public Arm64ArrangementSpecifier Op4Arrangement { get; internal set; }
     public Arm64ShiftType Op0ShiftType { get; internal set; }
     public Arm64ShiftType Op1ShiftType { get; internal set; }
     public Arm64ShiftType Op2ShiftType { get; internal set; }
     public Arm64ShiftType Op3ShiftType { get; internal set; }
+    public Arm64ShiftType Op4ShiftType { get; internal set; }
 
     public Arm64Register MemBase { get; internal set; }
     public Arm64Register MemAddendReg { get; internal set; }

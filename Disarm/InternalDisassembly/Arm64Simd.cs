@@ -91,10 +91,10 @@ internal static class Arm64Simd
 
     private static Arm64Instruction CryptoAes(uint instruction)
     {
-        var size = (instruction >> 22) & 0b11;
-        var opcode = (instruction >> 12) & 0b1_1111;
-        var rn = (int) (instruction >> 5) & 0b11111;
-        var rd = (int) instruction & 0b11111;
+        var size = (instruction >> 22) & 0b11; // Bits 22-23
+        var opcode = (instruction >> 12) & 0b1_1111; // Bits 12-16
+        var rn = (int) (instruction >> 5) & 0b11111; // Bits 5-9
+        var rd = (int) instruction & 0b11111; // Bits 0-4
         
         if(size != 0)
             throw new Arm64UndefinedInstructionException("AES instruction with size != 0");
@@ -104,26 +104,92 @@ internal static class Arm64Simd
 
         return new()
         {
-            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            Mnemonic = opcode switch
+            {
+                0b00100 => Arm64Mnemonic.AESE,
+                0b00101 => Arm64Mnemonic.AESD,
+                0b00110 => Arm64Mnemonic.AESMC,
+                0b00111 => Arm64Mnemonic.AESIMC,
+                _ => throw new Arm64UndefinedInstructionException($"AES: bad opcode {opcode}")
+            },
             MnemonicCategory = Arm64MnemonicCategory.SimdCryptographic,
+            Op0Kind = Arm64OperandKind.Register,
+            Op1Kind = Arm64OperandKind.Register,
+            Op0Reg = Arm64Register.V0 + rd,
+            Op1Reg = Arm64Register.V0 + rn,
         };
     }
 
     private static Arm64Instruction CryptoTwoRegSha(uint instruction)
     {
+        var size = (instruction >> 22) & 0b11; // Bits 22-23
+        var opcode = (instruction >> 12) & 0b1_1111; // Bits 12-16
+        var rn = (int) (instruction >> 5) & 0b11111; // Bits 5-9
+        var rd = (int) instruction & 0b11111; // Bits 0-4
+        
+        if(size != 0)
+            throw new Arm64UndefinedInstructionException("SHA instruction with size != 0");
+        
         return new()
         {
-            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            Mnemonic = opcode switch
+            {
+                0b00000 => Arm64Mnemonic.SHA1H,
+                0b00001 => Arm64Mnemonic.SHA1SU1,
+                0b00010 => Arm64Mnemonic.SHA256SU0,
+                _ => throw new Arm64UndefinedInstructionException($"SHA: bad opcode {opcode}")
+            },
             MnemonicCategory = Arm64MnemonicCategory.SimdCryptographic, 
+            Op0Kind = Arm64OperandKind.Register,
+            Op1Kind = Arm64OperandKind.Register,
+            Op0Reg = opcode switch
+            {
+                0b00001 => Arm64Register.V0 + rd,
+                _ => Arm64Register.S0 + rd,
+            },
+            Op1Reg = opcode switch
+            {
+                0b00001 => Arm64Register.V0 + rn,
+                _ => Arm64Register.S0 + rn,
+            },
         };
     }
 
     private static Arm64Instruction CryptoThreeRegSha(uint instruction)
     {
+        var size = (instruction >> 22) & 0b11; // Bits 22-23
+        var opcode = (instruction >> 12) & 0b111; // Bits 12-14
+        var rm = (int) (instruction >> 16) & 0b11111; // Bits 16-20
+        var rn = (int) (instruction >> 5) & 0b11111; // Bits 5-9
+        var rd = (int) instruction & 0b11111; // Bits 0-4
+        
+        if(size != 0)
+            throw new Arm64UndefinedInstructionException("SHA instruction with size != 0");
+        
         return new()
         {
-            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            Mnemonic = opcode switch
+            {
+                0b000 => Arm64Mnemonic.SHA1C,
+                0b001 => Arm64Mnemonic.SHA1P,
+                0b010 => Arm64Mnemonic.SHA1M,
+                0b011 => Arm64Mnemonic.SHA1SU0,
+                0b100 => Arm64Mnemonic.SHA256H,
+                0b101 => Arm64Mnemonic.SHA256H2,
+                0b110 => Arm64Mnemonic.SHA256SU1,
+                _ => throw new Arm64UndefinedInstructionException("Bad opcode")
+            },
             MnemonicCategory = Arm64MnemonicCategory.SimdCryptographic, 
+            Op0Kind = Arm64OperandKind.Register,
+            Op1Kind = Arm64OperandKind.Register,
+            Op2Kind = Arm64OperandKind.Register,
+            Op0Reg = Arm64Register.V0 + rd,
+            Op1Reg = opcode switch
+            {
+                0b000 or 0b001 or 0b010 => Arm64Register.S0 + rn,
+                _ => Arm64Register.V0 + rn,
+            },
+            Op3Reg = Arm64Register.V0 + rm,
         };
     }
 
