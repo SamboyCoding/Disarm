@@ -32,11 +32,11 @@
     </ItemGroup>
 
     <ItemGroup>
-		<PackageReference Include="PolySharp" Version="1.13.1" Condition="'$(TargetFramework)' == 'netstandard2.0'">
+		<PackageReference Include="PolySharp" Version="1.14.1" Condition="'$(TargetFramework)' == 'netstandard2.0'">
 			<PrivateAssets>all</PrivateAssets>
 		</PackageReference>
         <PackageReference Include="System.Memory" Version="4.5.5" Condition="'$(TargetFramework)' == 'netstandard2.0'" />
-        <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" />
+        <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
     </ItemGroup>
 
 </Project>
