@@ -93,6 +93,11 @@ internal static class Arm64CommonUtils
         return bits;
     }
 
+    public static int HighestSetBit(long value, int numBits)
+    {
+        return HighestSetBit(LongToBits(value, numBits));
+    } 
+    
     private static int HighestSetBit(BitArray bits)
     {
         for (var i = 0; i < bits.Length; i++)

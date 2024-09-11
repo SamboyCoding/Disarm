@@ -171,7 +171,7 @@ internal static class Arm64ScalarAdvancedSimd
             case Arm64Mnemonic.SQSHL:
             case Arm64Mnemonic.SQSHLU:
             case Arm64Mnemonic.UQSHL:
-                esize = 8 << (int)(immh >> 3); // HighestSetBit(immh)
+                esize = 8 << Arm64CommonUtils.HighestSetBit(immh, 4);
                 width = immh switch
                 {
                     0 => throw new Arm64UndefinedInstructionException("Reserved"),
@@ -207,7 +207,7 @@ internal static class Arm64ScalarAdvancedSimd
                     >= 0b0100 and <= 0b0111 => Arm64Register.D0,
                     0 or >= 0b1000 => throw new Arm64UndefinedInstructionException("Reserved"),
                 };
-                esize = 8 << (int)(immh >> 3); // HighestSetBit(immh)
+                esize = 8 << Arm64CommonUtils.HighestSetBit(immh, 4);
                 result = result with
                 {
                     Op0Reg = width + rd,
