@@ -78,11 +78,167 @@ internal static class Arm64ScalarAdvancedSimd
 
     public static Arm64Instruction ShiftByImmediate(uint instruction)
     {
-        return new()
+        var u = instruction.TestBit(29);
+        var immh = (instruction >> 19) & 0b1111; // Bits 19-22
+        var imm = (instruction >> 16) & 0b111_1111; // Bits 16-22 : uint
+        var opcode = (instruction >> 11) & 0b1_1111; // Bits 11-15
+        var rn = (int) (instruction >> 5) & 0b1_1111; //Bits 5-9
+        var rd = (int) instruction & 0b1_1111; //Bits 0-4
+
+        if (immh == 0)
+            throw new Arm64UndefinedInstructionException("Unallocated");
+
+        var esize = 8 << 3;
+        
+        var result = new Arm64Instruction()
         {
-            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
-            MnemonicCategory = Arm64MnemonicCategory.SimdScalarMath
+            Mnemonic = u switch
+            {
+                true => opcode switch
+                {
+                    0b00000 => Arm64Mnemonic.USHR,
+                    0b00010 => Arm64Mnemonic.USRA,
+                    0b00100 => Arm64Mnemonic.URSHR,
+                    0b00110 => Arm64Mnemonic.URSRA,
+                    0b01000 => Arm64Mnemonic.SRI,
+                    0b01010 => Arm64Mnemonic.SLI,
+                    0b01100 => Arm64Mnemonic.SQSHLU,
+                    0b01110 => Arm64Mnemonic.UQSHL,
+                    0b10000 => Arm64Mnemonic.SQSHRUN,
+                    0b10001 => Arm64Mnemonic.SQRSHRUN,
+                    0b10010 => Arm64Mnemonic.UQSHRN,
+                    0b10011 => Arm64Mnemonic.UQRSHRN,
+                    0b11100 => Arm64Mnemonic.UCVTF,
+                    0b11111 => Arm64Mnemonic.FCVTZU,
+                    _ => throw new Arm64UndefinedInstructionException("Unallocated")
+                },
+                false => opcode switch
+                {
+                    0b00000 => Arm64Mnemonic.SSHR,
+                    0b00010 => Arm64Mnemonic.SSRA,
+                    0b00100 => Arm64Mnemonic.SRSHR,
+                    0b00110 => Arm64Mnemonic.SRSRA,
+                    0b01010 => Arm64Mnemonic.SHL,
+                    0b01110 => Arm64Mnemonic.SQSHL,
+                    0b10010 => Arm64Mnemonic.SQSHRN,
+                    0b10011 => Arm64Mnemonic.SQRSHRN,
+                    0b11100 => Arm64Mnemonic.SCVTF,
+                    0b11111 => Arm64Mnemonic.FCVTZS,
+                    _ => throw new Arm64UndefinedInstructionException("Unallocated")
+                }
+            },
+            MnemonicCategory = Arm64MnemonicCategory.SimdScalarMath,
+            Op0Kind = Arm64OperandKind.Register,
+            Op1Kind = Arm64OperandKind.Register,
+            Op2Kind = Arm64OperandKind.Immediate,
         };
+        
+        Arm64Register width;
+
+        switch (result.Mnemonic)
+        {
+            case Arm64Mnemonic.SSHR:
+            case Arm64Mnemonic.SSRA:
+            case Arm64Mnemonic.SRSHR:
+            case Arm64Mnemonic.SRSRA:
+            case Arm64Mnemonic.USHR:
+            case Arm64Mnemonic.USRA:
+            case Arm64Mnemonic.URSHR:
+            case Arm64Mnemonic.URSRA:
+            case Arm64Mnemonic.SRI:
+                if ((immh & 0b1000) != 0b1000)
+                    throw new Arm64UndefinedInstructionException("Reserved");
+                width = Arm64Register.D0;
+                result = result with
+                {
+                    Op0Reg = width + rd,
+                    Op1Reg = width + rn,
+                    Op2Imm =  (esize * 2) - imm
+                };
+                break;
+            case Arm64Mnemonic.SHL:
+            case Arm64Mnemonic.SLI:
+                if ((immh & 0b1000) != 0b1000)
+                    throw new Arm64UndefinedInstructionException("Reserved");
+                width = Arm64Register.D0;
+                result = result with
+                {
+                    Op0Reg = width + rd,
+                    Op1Reg = width + rn,
+                    Op2Imm = imm - esize
+                };
+                break;
+            case Arm64Mnemonic.SQSHL:
+            case Arm64Mnemonic.SQSHLU:
+            case Arm64Mnemonic.UQSHL:
+                esize = 8 << (int)(immh >> 3); // HighestSetBit(immh)
+                width = immh switch
+                {
+                    0 => throw new Arm64UndefinedInstructionException("Reserved"),
+                    0b0001 => Arm64Register.B0,
+                    0b0010 or 0b0011 => Arm64Register.H0,
+                    >= 0b0100 and <= 0b0111 => Arm64Register.S0,
+                    >= 0b1000 => Arm64Register.D0,
+                };
+                result = result with
+                {
+                    Op0Reg = width + rd,
+                    Op1Reg = width + rn,
+                    Op2Imm = imm - esize
+                };
+                break;
+            case Arm64Mnemonic.SQSHRN:
+            case Arm64Mnemonic.SQRSHRN:
+            case Arm64Mnemonic.SQSHRUN:
+            case Arm64Mnemonic.SQRSHRUN:
+            case Arm64Mnemonic.UQSHRN:
+            case Arm64Mnemonic.UQRSHRN:
+                width = immh switch
+                {
+                    0b0001 => Arm64Register.B0,
+                    0b0010 or 0b0011 => Arm64Register.H0,
+                    >= 0b0100 and <= 0b0111 => Arm64Register.S0,
+                    0 or >= 0b1000 => throw new Arm64UndefinedInstructionException("Reserved"),
+                };
+                var width2 = immh switch
+                {
+                    0b0001 => Arm64Register.H0,
+                    0b0010 or 0b0011 => Arm64Register.S0,
+                    >= 0b0100 and <= 0b0111 => Arm64Register.D0,
+                    0 or >= 0b1000 => throw new Arm64UndefinedInstructionException("Reserved"),
+                };
+                esize = 8 << (int)(immh >> 3); // HighestSetBit(immh)
+                result = result with
+                {
+                    Op0Reg = width + rd,
+                    Op1Reg = width2 + rn,
+                    Op2Imm = (esize * 2) - imm
+                };
+                break;
+            case Arm64Mnemonic.SCVTF:
+            case Arm64Mnemonic.FCVTZS:
+            case Arm64Mnemonic.UCVTF:
+            case Arm64Mnemonic.FCVTZU:
+                esize = immh.TestBit(3) ? 64 // if 1xxx then 64
+                    : immh.TestBit(2) ? 32  // else if 01xx then 32
+                    : 16; // else 16
+                width = immh switch
+                {
+                    0b0000 or 0b0001 => throw new Arm64UndefinedInstructionException("Reserved"),
+                    0b0010 or 0b0011 => Arm64Register.H0,
+                    >= 0b0100 and <= 0b0111 => Arm64Register.S0,
+                    >= 0b1000 => Arm64Register.D0,
+                };
+                result = result with
+                {
+                    Op0Reg = width + rd,
+                    Op1Reg = width + rn,
+                    Op2Imm = (esize * 2) - imm // fbits
+                };
+                break;
+        }
+        
+        return result;
     }
 
     public static Arm64Instruction ScalarXIndexedElement(uint instruction)
