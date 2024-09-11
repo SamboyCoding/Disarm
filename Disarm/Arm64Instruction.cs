@@ -118,8 +118,16 @@ public struct Arm64Instruction
     public Arm64ConditionCode FinalOpConditionCode { get; internal set; }
     
     public ulong BranchTarget => Mnemonic is Arm64Mnemonic.B or Arm64Mnemonic.BL 
-        ? (ulong) ((long) Address + Op0Imm) //Casting is a bit weird here because we want to return an unsigned long (can't jump to negative), but the immediate needs to be signed.
+        ? Op0PcRelImm
         : throw new("Branch target not available for this instruction, must be a B or BL");
+    
+    public ulong Op0PcRelImm => Op0Kind == Arm64OperandKind.ImmediatePcRelative
+        ? (ulong) ((long) Address + Op0Imm) //Casting is a bit weird here because we want to return an unsigned long (can't jump to negative), but the immediate needs to be signed.
+        : throw new("Operand 0 is not a PC-relative immediate");
+    
+    public ulong Op1PcRelImm => Op1Kind == Arm64OperandKind.ImmediatePcRelative
+        ? (ulong) ((long) Address + Op1Imm)
+        : throw new("Operand 1 is not a PC-relative immediate");
 
     public override string ToString()
     {

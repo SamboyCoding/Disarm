@@ -268,7 +268,8 @@ internal static class Arm64LoadsStores
         var opc = (instruction >> 30) & 0b11; // Bits 30-31
         var v = instruction.TestBit(26);
         var imm19 = (instruction >> 5) & 0b111_1111_1111_1111_1111; // Bits 5-23
-        var label = Arm64CommonUtils.SignExtend(imm19, 19, 64);
+        imm19 <<= 2; //4-byte aligned
+        var label = Arm64CommonUtils.SignExtend(imm19, 21, 64); //21 is 19 + 2 for the left shift
         var rt = (int)instruction & 0b1_1111;
         
         return opc switch
@@ -297,7 +298,7 @@ internal static class Arm64LoadsStores
                 MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister, 
                 Op0Kind = Arm64OperandKind.Immediate,
                 Op1Kind = Arm64OperandKind.ImmediatePcRelative,
-                Op0Imm = rt,
+                Op0Imm = rt, //TODO Prefetch isn't just a raw imm, it's a combination of well-defined type | cache level | cache policy
                 Op1Imm = label
             },
             (0b00 or 0b01 or 0b10) when v => new()
