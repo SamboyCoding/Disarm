@@ -351,4 +351,29 @@ public class SimdTest : BaseDisarmTest
         inst = DisassembleAndCheckMnemonic(0x7FA09021, Arm64Mnemonic.FMULX);
         Assert.Equal("0x00000000 FMULX S1, S1, V0.S[1]", inst.ToString());
     }
+
+    [Fact]
+    public void TestScalarAdvancedSimdScalarTwoRegisterMiscFp16()
+    {
+        DisassembleAndCheckMnemonic(0x5E79A812, Arm64Mnemonic.FCVTNS);
+        DisassembleAndCheckMnemonic(0x5E79B812, Arm64Mnemonic.FCVTMS);
+        DisassembleAndCheckMnemonic(0x5E79C812, Arm64Mnemonic.FCVTAS);
+        DisassembleAndCheckMnemonic(0x5E79D812, Arm64Mnemonic.SCVTF);
+        DisassembleAndCheckMnemonic(0x5EF8C812, Arm64Mnemonic.FCMGT);
+        DisassembleAndCheckMnemonic(0x5EF8D812, Arm64Mnemonic.FCMEQ);
+        DisassembleAndCheckMnemonic(0x5EF8E812, Arm64Mnemonic.FCMLT);
+        DisassembleAndCheckMnemonic(0x5EF9A812, Arm64Mnemonic.FCVTPS);
+        DisassembleAndCheckMnemonic(0x5EF9B812, Arm64Mnemonic.FCVTZS);
+        DisassembleAndCheckMnemonic(0x5EF9D812, Arm64Mnemonic.FRECPE);
+        DisassembleAndCheckMnemonic(0x5EF9F812, Arm64Mnemonic.FRECPX);
+        DisassembleAndCheckMnemonic(0x7E79A812, Arm64Mnemonic.FCVTNU);
+        DisassembleAndCheckMnemonic(0x7E79B812, Arm64Mnemonic.FCVTMU);
+        DisassembleAndCheckMnemonic(0x7E79C812, Arm64Mnemonic.FCVTAU);
+        DisassembleAndCheckMnemonic(0x7E79D812, Arm64Mnemonic.UCVTF);
+        DisassembleAndCheckMnemonic(0x7EF8C812, Arm64Mnemonic.FCMGE);
+        DisassembleAndCheckMnemonic(0x7EF8D812, Arm64Mnemonic.FCMLE);
+        DisassembleAndCheckMnemonic(0x7EF9A812, Arm64Mnemonic.FCVTPU);
+        DisassembleAndCheckMnemonic(0x7EF9B812, Arm64Mnemonic.FCVTZU);
+        DisassembleAndCheckMnemonic(0x7EF9D812, Arm64Mnemonic.FRSQRTE);
+    }
 }

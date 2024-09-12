@@ -401,10 +401,46 @@ internal static class Arm64ScalarAdvancedSimd
 
     public static Arm64Instruction TwoRegisterMiscFp16(uint instruction)
     {
-        return new()
+        var u = (instruction >> 29) & 1; // Bit 29
+        var a = (instruction >> 23) & 1; // Bit 23
+        var opcode = (instruction >> 12) & 0b1_1111; // Bits 12-16
+        var rd = (int)(instruction >> 5) & 0b1_1111; // Bits 5-9
+        var rn = (int)instruction & 0b1_1111; // Bits 0-4
+        
+        return new ()
         {
-            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
-            MnemonicCategory = Arm64MnemonicCategory.Unspecified, //Could be comparison, math, conversion, or general data processing
+            Mnemonic = (u, a, opcode) switch
+            {
+                (0, 0, 0b11010) => Arm64Mnemonic.FCVTNS,
+                (0, 0, 0b11011) => Arm64Mnemonic.FCVTMS,
+                (0, 0, 0b11100) => Arm64Mnemonic.FCVTAS,
+                (0, 0, 0b11101) => Arm64Mnemonic.SCVTF,
+                
+                (0, 1, 0b01100) => Arm64Mnemonic.FCMGT,
+                (0, 1, 0b01101) => Arm64Mnemonic.FCMEQ,
+                (0, 1, 0b01110) => Arm64Mnemonic.FCMLT,
+                (0, 1, 0b11010) => Arm64Mnemonic.FCVTPS,
+                (0, 1, 0b11011) => Arm64Mnemonic.FCVTZS,
+                (0, 1, 0b11101) => Arm64Mnemonic.FRECPE,
+                (0, 1, 0b11111) => Arm64Mnemonic.FRECPX,
+                
+                (1, 0, 0b11010) => Arm64Mnemonic.FCVTNU,
+                (1, 0, 0b11011) => Arm64Mnemonic.FCVTMU,
+                (1, 0, 0b11100) => Arm64Mnemonic.FCVTAU,
+                (1, 0, 0b11101) => Arm64Mnemonic.UCVTF,
+                
+                (1, 1, 0b01100) => Arm64Mnemonic.FCMGE,
+                (1, 1, 0b01101) => Arm64Mnemonic.FCMLE,
+                (1, 1, 0b11010) => Arm64Mnemonic.FCVTPU,
+                (1, 1, 0b11011) => Arm64Mnemonic.FCVTZU,
+                (1, 1, 0b11101) => Arm64Mnemonic.FRSQRTE,
+                _ => throw new Arm64UndefinedInstructionException("Unallocated")
+            },
+            MnemonicCategory = Arm64MnemonicCategory.SimdScalarMath,
+            Op0Kind = Arm64OperandKind.Register,
+            Op1Kind = Arm64OperandKind.Register,
+            Op0Reg = Arm64Register.H0 + rd,
+            Op1Reg = Arm64Register.H0 + rn,
         };
     }
 
