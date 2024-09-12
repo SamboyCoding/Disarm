@@ -325,4 +325,30 @@ public class SimdTest : BaseDisarmTest
         inst = DisassembleAndCheckMnemonic(0x5F40FDBA, Arm64Mnemonic.FCVTZS);
         Assert.Equal("0x00000000 FCVTZS D26, D13, 0x40", inst.ToString());
     }
+
+    [Fact]
+    public void TestScalarAdvancedSimdScalarXIndexedElement()
+    {
+        Arm64Instruction inst;
+        inst = DisassembleAndCheckMnemonic(0x5F553862, Arm64Mnemonic.SQDMLAL);
+        Assert.Equal("0x00000000 SQDMLAL S2, H3, V5.H[5]", inst.ToString());
+        inst = DisassembleAndCheckMnemonic(0x5F557021, Arm64Mnemonic.SQDMLSL);
+        Assert.Equal("0x00000000 SQDMLSL S1, H1, V5.H[1]", inst.ToString());
+        inst = DisassembleAndCheckMnemonic(0x5F55B021, Arm64Mnemonic.SQDMULL);
+        Assert.Equal("0x00000000 SQDMULL S1, H1, V5.H[1]", inst.ToString());
+        inst = DisassembleAndCheckMnemonic(0x5F55C021, Arm64Mnemonic.SQDMULH);
+        Assert.Equal("0x00000000 SQDMULH H1, H1, V5.H[1]", inst.ToString());
+        inst = DisassembleAndCheckMnemonic(0x5F55D021, Arm64Mnemonic.SQRDMULH);
+        Assert.Equal("0x00000000 SQRDMULH H1, H1, V5.H[1]", inst.ToString());
+        inst = DisassembleAndCheckMnemonic(0x5FA01021, Arm64Mnemonic.FMLA);
+        Assert.Equal("0x00000000 FMLA S1, S1, V0.S[1]", inst.ToString());
+        inst = DisassembleAndCheckMnemonic(0x5FA05021, Arm64Mnemonic.FMLS);
+        Assert.Equal("0x00000000 FMLS S1, S1, V0.S[1]", inst.ToString());
+        inst = DisassembleAndCheckMnemonic(0x5FA09021, Arm64Mnemonic.FMUL);
+        Assert.Equal("0x00000000 FMUL S1, S1, V0.S[1]", inst.ToString());
+        DisassembleAndCheckMnemonic(0x7F55D021, Arm64Mnemonic.SQRDMLAH);
+        DisassembleAndCheckMnemonic(0x7F55F021, Arm64Mnemonic.SQRDMLSH);
+        inst = DisassembleAndCheckMnemonic(0x7FA09021, Arm64Mnemonic.FMULX);
+        Assert.Equal("0x00000000 FMULX S1, S1, V0.S[1]", inst.ToString());
+    }
 }

@@ -243,11 +243,160 @@ internal static class Arm64ScalarAdvancedSimd
 
     public static Arm64Instruction ScalarXIndexedElement(uint instruction)
     {
-        return new()
+        var u = instruction.TestBit(29); // Bit 29
+        var size = (instruction >> 22) & 0b11; // Bits 22-23
+        var l = instruction.TestBit(21) ? 1 : 0 ; // Bit 21
+        var m = instruction.TestBit(20) ? 1 : 0; // Bit 20
+        var rm = (int) (instruction >> 16) & 0b1111; //Bits 16-19
+        var opcode = (instruction >> 12) & 0b1111; // Bits 12-15
+        var h = instruction.TestBit(11) ? 1 : 0; // Bit 11
+        var rn = (int) (instruction >> 5) & 0b1_1111; //Bits 5-9
+        var rd = (int) instruction & 0b1_1111; //Bits 0-4
+        
+        // required for FM** instructions
+        var szl = (instruction >> 21) & 0b11; // Bits 21-22
+        var sz = instruction.TestBit(22); // Bit 22
+        
+        var result = new Arm64Instruction()
         {
-            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            Mnemonic = u switch
+            {
+                false => opcode switch
+                {
+                    0b0011 => Arm64Mnemonic.SQDMLAL,
+                    0b0111 => Arm64Mnemonic.SQDMLSL,
+                    0b1011 => Arm64Mnemonic.SQDMULL,
+                    0b1100 => Arm64Mnemonic.SQDMULH,
+                    0b1101 => Arm64Mnemonic.SQRDMULH,
+                    // 00 for FP16 and 1X for Single/Double
+                    0b0001 when size != 0b01 => Arm64Mnemonic.FMLA,
+                    0b0101 when size != 0b01 => Arm64Mnemonic.FMLS,
+                    0b1001 when size != 0b01 => Arm64Mnemonic.FMUL,
+                    _ => throw new Arm64UndefinedInstructionException("Unallocated")
+                },
+                true => opcode switch
+                {
+                    0b1101 => Arm64Mnemonic.SQRDMLAH,
+                    0b1111 => Arm64Mnemonic.SQRDMLSH,
+                    // 00 for FP16 and 1X for Single/Double
+                    0b1001 when size != 0b01 => Arm64Mnemonic.FMULX,
+                    _ => throw new Arm64UndefinedInstructionException("Unallocated")
+                }
+            },
             MnemonicCategory = Arm64MnemonicCategory.SimdScalarMath,
+            Op0Kind = Arm64OperandKind.Register,
+            Op1Kind = Arm64OperandKind.Register,
+            Op2Kind = Arm64OperandKind.VectorRegisterElement,
         };
+
+        switch (result.Mnemonic)
+        {
+            // <Va><d>, <Vb><n>, <Vm>.<Ts>[<index>]
+            case Arm64Mnemonic.SQDMLAL:
+            case Arm64Mnemonic.SQDMLSL:
+            case Arm64Mnemonic.SQDMULL:
+                result = result with
+                {
+                    Op0Reg = size switch
+                    {
+                        0b01 => Arm64Register.S0,
+                        0b10 => Arm64Register.D0,
+                        _ => throw new Arm64UndefinedInstructionException("Reserved")
+                    } + rd,
+                    Op1Reg = size switch
+                    {
+                        0b01 => Arm64Register.H0,
+                        0b10 => Arm64Register.S0,
+                        _ => throw new Arm64UndefinedInstructionException("Reserved")
+                    } + rn,
+                    Op2Reg = size switch
+                    {
+                        0b01 => Arm64Register.V0 + rm,
+                        0b10 => Arm64Register.V0 + (rm | (m << 5)),
+                        _ => throw new Arm64UndefinedInstructionException("Reserved")
+                    },
+                    Op2VectorElement = size switch
+                    {
+                        0b01 => new(Arm64VectorElementWidth.H, (h << 2) | (l << 1) | m),
+                        0b10 => new(Arm64VectorElementWidth.S, (h << 1) | l),
+                        _ => throw new Arm64UndefinedInstructionException("Reserved")
+                    }
+                };
+                break;
+            // <V><d>, <V><n>, <Vm>.<Ts>[<index>]
+            case Arm64Mnemonic.SQDMULH:
+            case Arm64Mnemonic.SQRDMULH:
+            case Arm64Mnemonic.SQRDMLAH:
+            case Arm64Mnemonic.SQRDMLSH:
+                result = result with
+                {
+                    Op0Reg = size switch
+                    {
+                        0b01 => Arm64Register.H0,
+                        0b10 => Arm64Register.S0,
+                        _ => throw new Arm64UndefinedInstructionException("Reserved")
+                    } + rd,
+                    Op1Reg = size switch
+                    {
+                        0b01 => Arm64Register.H0,
+                        0b10 => Arm64Register.S0,
+                        _ => throw new Arm64UndefinedInstructionException("Reserved")
+                    } + rn,
+                    Op2Reg = size switch
+                    {
+                        0b01 => Arm64Register.V0 + rm,
+                        0b10 => Arm64Register.V0 + (rm | (m << 5)),
+                        _ => throw new Arm64UndefinedInstructionException("Reserved")
+                    },
+                    Op2VectorElement = size switch
+                    {
+                        0b01 => new(Arm64VectorElementWidth.H, (h << 2) | (l << 1) | m),
+                        0b10 => new(Arm64VectorElementWidth.S, (h << 1) | l),
+                        _ => throw new Arm64UndefinedInstructionException("Reserved")
+                    }
+                };
+                break;
+            //  <Hd>, <Hn>, <Vm>.H[<index>] for FEAT_FP16 && size == 0
+            //  <V><d>, <V><n>, <Vm>.<Ts>[<index>]
+            case Arm64Mnemonic.FMLA:
+            case Arm64Mnemonic.FMLS:
+            case Arm64Mnemonic.FMUL:
+            case Arm64Mnemonic.FMULX:
+                var reg = size switch
+                {
+                    0 => Arm64Register.H0,
+                    0b10 or 0b11 => sz switch
+                    {
+                        false => Arm64Register.S0,
+                        true => Arm64Register.D0,
+                    },
+                    _ => throw new Arm64UndefinedInstructionException("Unexpected")
+                };
+                result = result with
+                {
+                    Op0Reg = reg + rd,
+                    Op1Reg = reg + rn,
+                    Op2Reg = Arm64Register.V0 + size switch
+                    {
+                        0 => rm,
+                        _ => rm | (m << 5)
+                    },
+                    Op2VectorElement = size switch
+                    {
+                        0 => new Arm64VectorElement(Arm64VectorElementWidth.H, (h << 2) | (l << 1) | m), // H:L:M for fp16
+                        _ => new Arm64VectorElement(sz ? Arm64VectorElementWidth.D : Arm64VectorElementWidth.S, 
+                            (sz ? 1 : 0, l) switch
+                            {
+                                (0, _) => (h << 1) | l,
+                                (1, 0) => h,
+                                _ => throw new Arm64UndefinedInstructionException("Reserved")
+                            })
+                    },
+                };
+                break;
+        }
+        
+        return result;
     }
 
     public static Arm64Instruction TwoRegisterMiscFp16(uint instruction)
