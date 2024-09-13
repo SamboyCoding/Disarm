@@ -376,4 +376,119 @@ public class SimdTest : BaseDisarmTest
         DisassembleAndCheckMnemonic(0x7EF9B812, Arm64Mnemonic.FCVTZU);
         DisassembleAndCheckMnemonic(0x7EF9D812, Arm64Mnemonic.FRSQRTE);
     }
+    
+    [Fact]
+    public void TestScalarAdvancedSimdScalarTwoRegisterMisc()
+    {
+        DisassembleAndCheckMnemonic(0x5EA03820, Arm64Mnemonic.SUQADD);
+        DisassembleAndCheckMnemonic(0x5EA07820, Arm64Mnemonic.SQABS);
+        DisassembleAndCheckMnemonic(0x5EE08841, Arm64Mnemonic.CMGT);
+        DisassembleAndCheckMnemonic(0x5EE09841, Arm64Mnemonic.CMEQ);
+        DisassembleAndCheckMnemonic(0x5EE0A841, Arm64Mnemonic.CMLT);
+        DisassembleAndCheckMnemonic(0x5EE0B841, Arm64Mnemonic.ABS);
+        DisassembleAndCheckMnemonic(0x5E214841, Arm64Mnemonic.SQXTN);
+        DisassembleAndCheckMnemonic(0x5E21A841, Arm64Mnemonic.FCVTNS);
+        DisassembleAndCheckMnemonic(0x5E21B841, Arm64Mnemonic.FCVTMS);
+        DisassembleAndCheckMnemonic(0x5E21C841, Arm64Mnemonic.FCVTAS);
+        DisassembleAndCheckMnemonic(0x5E21D841, Arm64Mnemonic.SCVTF);
+        DisassembleAndCheckMnemonic(0x5EA0C841, Arm64Mnemonic.FCMGT);
+        DisassembleAndCheckMnemonic(0x5EA0D841, Arm64Mnemonic.FCMEQ);
+        DisassembleAndCheckMnemonic(0x5EA0E841, Arm64Mnemonic.FCMLT);
+        DisassembleAndCheckMnemonic(0x5EA1B841, Arm64Mnemonic.FCVTZS); 
+        DisassembleAndCheckMnemonic(0x5EA1D841, Arm64Mnemonic.FRECPE);
+        DisassembleAndCheckMnemonic(0x5EA1F841, Arm64Mnemonic.FRECPX);
+        DisassembleAndCheckMnemonic(0x7EA03841, Arm64Mnemonic.USQADD);
+        DisassembleAndCheckMnemonic(0x7EA07841, Arm64Mnemonic.SQNEG);
+        DisassembleAndCheckMnemonic(0x7EE08841, Arm64Mnemonic.CMGE);
+        DisassembleAndCheckMnemonic(0x7EE09841, Arm64Mnemonic.CMLE);
+        DisassembleAndCheckMnemonic(0x7EE0B841, Arm64Mnemonic.NEG);
+        DisassembleAndCheckMnemonic(0x7EA12841, Arm64Mnemonic.SQXTUN);
+        DisassembleAndCheckMnemonic(0x7EA14841, Arm64Mnemonic.UQXTN);
+        DisassembleAndCheckMnemonic(0x7E616841, Arm64Mnemonic.FCVTXN);
+        DisassembleAndCheckMnemonic(0x7E21A841, Arm64Mnemonic.FCVTNU);
+        DisassembleAndCheckMnemonic(0x7E21B841, Arm64Mnemonic.FCVTMU);
+        DisassembleAndCheckMnemonic(0x7E21C841, Arm64Mnemonic.FCVTAU);
+        DisassembleAndCheckMnemonic(0x7E21D841, Arm64Mnemonic.UCVTF);
+        DisassembleAndCheckMnemonic(0x7EA0C841, Arm64Mnemonic.FCMGE);
+        DisassembleAndCheckMnemonic(0x7EA0D841, Arm64Mnemonic.FCMLE);
+        DisassembleAndCheckMnemonic(0x7EA1A841, Arm64Mnemonic.FCVTPU);
+        DisassembleAndCheckMnemonic(0x7EA1B841, Arm64Mnemonic.FCVTZU);
+        DisassembleAndCheckMnemonic(0x7EA1D841, Arm64Mnemonic.FRSQRTE);
+    }
+    
+    [Fact]
+    public void TestScalarAdvancedSimdScalarPairwise()
+    {
+        DisassembleAndCheckMnemonic(0x5EF1B801, Arm64Mnemonic.ADDP);
+        DisassembleAndCheckMnemonic(0x7E70C801, Arm64Mnemonic.FMAXNMP);
+        DisassembleAndCheckMnemonic(0x7E70D801, Arm64Mnemonic.FADDP);
+        DisassembleAndCheckMnemonic(0x7E70F801, Arm64Mnemonic.FMAXP);
+        DisassembleAndCheckMnemonic(0x7EF0C801, Arm64Mnemonic.FMINNMP);
+        DisassembleAndCheckMnemonic(0x7EF0F801, Arm64Mnemonic.FMINP);
+    }
+    
+    [Fact]
+    public void TestScalarAdvancedSimdScalarThreeDifferent()
+    {
+        DisassembleAndCheckMnemonic(0x5E639041, Arm64Mnemonic.SQDMLAL);
+        DisassembleAndCheckMnemonic(0x5E63B041, Arm64Mnemonic.SQDMLSL);
+        DisassembleAndCheckMnemonic(0x5E63D041, Arm64Mnemonic.SQDMULL);
+    }
+     
+    [Fact]
+    public void TestScalarAdvancedSimdScalarThreeSame()
+    {
+        DisassembleAndCheckMnemonic(0x5EE3_0C41, Arm64Mnemonic.SQADD);
+        DisassembleAndCheckMnemonic(0x5EE3_2C41, Arm64Mnemonic.SQSUB);
+        DisassembleAndCheckMnemonic(0x5EE3_3441, Arm64Mnemonic.CMGT);
+        DisassembleAndCheckMnemonic(0x5EE3_3C41, Arm64Mnemonic.CMGE);
+        DisassembleAndCheckMnemonic(0x5EE3_4441, Arm64Mnemonic.SSHL);
+        DisassembleAndCheckMnemonic(0x5EE3_4C41, Arm64Mnemonic.SQSHL);
+        DisassembleAndCheckMnemonic(0x5EE3_5441, Arm64Mnemonic.SRSHL);
+        DisassembleAndCheckMnemonic(0x5EE3_5C41, Arm64Mnemonic.SQRSHL);
+        DisassembleAndCheckMnemonic(0x5EE3_8441, Arm64Mnemonic.ADD);
+        DisassembleAndCheckMnemonic(0x5EE3_8C41, Arm64Mnemonic.CMTST);
+        DisassembleAndCheckMnemonic(0x5EA3_B441, Arm64Mnemonic.SQDMULH);
+        DisassembleAndCheckMnemonic(0x5E23_DC41, Arm64Mnemonic.FMULX);
+        DisassembleAndCheckMnemonic(0x5E23_E441, Arm64Mnemonic.FCMEQ);
+        DisassembleAndCheckMnemonic(0x5E23_FC41, Arm64Mnemonic.FRECPS);
+        DisassembleAndCheckMnemonic(0x5EA3_FC41, Arm64Mnemonic.FRSQRTS);
+        DisassembleAndCheckMnemonic(0x7EA3_0C41, Arm64Mnemonic.UQADD);
+        DisassembleAndCheckMnemonic(0x7EA3_2C41, Arm64Mnemonic.UQSUB);
+        DisassembleAndCheckMnemonic(0x7EE3_3441, Arm64Mnemonic.CMHI);
+        DisassembleAndCheckMnemonic(0x7EE3_3C41, Arm64Mnemonic.CMHS);
+        DisassembleAndCheckMnemonic(0x7EE3_4441, Arm64Mnemonic.USHL);
+        DisassembleAndCheckMnemonic(0x7EE3_4C41, Arm64Mnemonic.UQSHL);
+        DisassembleAndCheckMnemonic(0x7EE3_5441, Arm64Mnemonic.URSHL);
+        DisassembleAndCheckMnemonic(0x7EE3_5C41, Arm64Mnemonic.UQRSHL);
+        DisassembleAndCheckMnemonic(0x7EE3_8441, Arm64Mnemonic.SUB);
+        DisassembleAndCheckMnemonic(0x7EE3_8C41, Arm64Mnemonic.CMEQ);
+        DisassembleAndCheckMnemonic(0x7EA3_B441, Arm64Mnemonic.SQRDMULH);
+        DisassembleAndCheckMnemonic(0x7E63_E441, Arm64Mnemonic.FCMGE);
+        DisassembleAndCheckMnemonic(0x7E63_EC41, Arm64Mnemonic.FACGE);
+        DisassembleAndCheckMnemonic(0x7EE3_D441, Arm64Mnemonic.FABD);
+        DisassembleAndCheckMnemonic(0x7EE3_E441, Arm64Mnemonic.FCMGT);
+        DisassembleAndCheckMnemonic(0x7EE3_EC41, Arm64Mnemonic.FACGT);
+    }
+    
+    [Fact]
+    public void TestScalarAdvancedSimdScalarThreeSameFp16()
+    {
+        DisassembleAndCheckMnemonic(0x5E401C00, Arm64Mnemonic.FMULX);
+        DisassembleAndCheckMnemonic(0x5E402400, Arm64Mnemonic.FCMEQ);
+        DisassembleAndCheckMnemonic(0x5E403C00, Arm64Mnemonic.FRECPS);
+        DisassembleAndCheckMnemonic(0x5EC03C00, Arm64Mnemonic.FRSQRTS);
+        DisassembleAndCheckMnemonic(0x7E402400, Arm64Mnemonic.FCMGE);
+        DisassembleAndCheckMnemonic(0x7E402C00, Arm64Mnemonic.FACGE);
+        DisassembleAndCheckMnemonic(0x7EC01400, Arm64Mnemonic.FABD);
+        DisassembleAndCheckMnemonic(0x7EC02400, Arm64Mnemonic.FCMGT);
+        DisassembleAndCheckMnemonic(0x7EC02C00, Arm64Mnemonic.FACGT);
+    }
+    
+    [Fact]
+    public void TestScalarAdvancedSimdScalarThreeSameExtra()
+    {
+        DisassembleAndCheckMnemonic(0x7E808400, Arm64Mnemonic.SQRDMLAH);
+        DisassembleAndCheckMnemonic(0x7EC08C00, Arm64Mnemonic.SQRDMLSH);
+    } 
 }

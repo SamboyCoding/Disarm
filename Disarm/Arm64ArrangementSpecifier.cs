@@ -4,6 +4,7 @@ public enum Arm64ArrangementSpecifier
 {
     None,
     TwoD,
+    TwoH,
     FourH,
     FourS,
     TwoS,
