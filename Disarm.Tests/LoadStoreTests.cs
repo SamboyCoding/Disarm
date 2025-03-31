@@ -8,8 +8,14 @@ public class LoadStoreTests : BaseDisarmTest
     public LoadStoreTests(ITestOutputHelper testOutputHelper) : base(testOutputHelper) { }
 
     [Fact]
-    public void LoadStoreRegisterFromImm() 
-        => DisassembleAndCheckMnemonic(0x38420F59U, Arm64Mnemonic.LDRB);
+    public void LoadStoreRegisterFromImm()
+    {
+        DisassembleAndCheckMnemonic(0x38420F59U, Arm64Mnemonic.LDRB);
+        
+        var instruction = DisassembleAndCheckMnemonic(0xFD41C100U, Arm64Mnemonic.LDR);
+        
+        Assert.Equal("0x00000000 LDR D0, [X8 + 0x380]", instruction.ToString());
+    }
 
     [Fact]
     public void LoadStoreRegFromRegOffset()
