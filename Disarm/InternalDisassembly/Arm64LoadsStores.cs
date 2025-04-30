@@ -702,6 +702,7 @@ internal static class Arm64LoadsStores
                 
                 mnemonic = opc == 0b10 ? Arm64Mnemonic.STR : Arm64Mnemonic.LDR;
                 baseReg = Arm64Register.V0; //128-bit variant
+                immediate <<= 4;
             }
             else
             {
