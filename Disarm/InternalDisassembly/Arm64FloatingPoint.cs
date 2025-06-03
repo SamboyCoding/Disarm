@@ -240,7 +240,32 @@ internal static class Arm64FloatingPoint
         
         var regD = baseReg + rd;
         var regN = baseReg + rn;
-
+//  Fix FCVT 
+        if (mnemonic == Arm64Mnemonic.FCVT)
+        {
+            if (opcode == 0b000101) // FCVT D/S
+            {
+                
+                regD = ptype switch
+                {
+                    0b00 => Arm64Register.D0 + rd, // S => D
+                    0b01 => Arm64Register.S0 + rd, // D => S
+                    0b11 => Arm64Register.S0 + rd, // H => S
+                    _ => throw new("Impossible ptype")
+                };
+            }
+            else if (opcode == 0b000111) // FCVT H/D
+            {
+               
+                regD = ptype switch
+                {
+                    0b00 => Arm64Register.H0 + rd, // S => H
+                    0b01 => Arm64Register.H0 + rd, // D => H
+                    0b11 => Arm64Register.D0 + rd, // H => D
+                    _ => throw new("Impossible ptype")
+                };
+            }
+        }
         return new()
         {
             Mnemonic = mnemonic,

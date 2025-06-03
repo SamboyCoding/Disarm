@@ -206,16 +206,24 @@ internal static class Arm64DataProcessingImmediate
         
         var regD = baseReg + rd;
         var shift = (int) hw * 16;
-
-        imm16 <<= shift;
-        
+       
+        long immValue = (long)imm16 << shift;
+    
+        //  If the instruction is 32-bit, we need to mask the immediate value to 32 bits
+        if (!is64Bit)
+            immValue &= 0xFFFFFFFF;
+        if (mnemonic==Arm64Mnemonic.MOVZ)
+        {
+            mnemonic = Arm64Mnemonic.MOV;
+        }
+       
         return new()
         {
             Mnemonic = mnemonic,
             Op0Kind = Arm64OperandKind.Register,
             Op1Kind = Arm64OperandKind.Immediate,
             Op0Reg = regD,
-            Op1Imm = imm16,
+            Op1Imm = immValue,
             MnemonicCategory = Arm64MnemonicCategory.Move,
         };
     }
