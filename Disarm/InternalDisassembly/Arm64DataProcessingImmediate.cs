@@ -207,11 +207,28 @@ internal static class Arm64DataProcessingImmediate
         var regD = baseReg + rd;
         var shift = (int) hw * 16;
        
-        long immValue = (long)imm16 << shift;
-    
-        //  If the instruction is 32-bit, we need to mask the immediate value to 32 bits
-        if (!is64Bit)
-            immValue &= 0xFFFFFFFF;
+        // For MOVK, we store the original immediate and shift info
+        // For other instructions, we calculate the shifted value
+        long immValue;
+        Arm64ShiftType shiftType = Arm64ShiftType.NONE;
+        int shiftAmount = 0;
+        
+        if (mnemonic == Arm64Mnemonic.MOVK && shift > 0)
+        {
+            // For MOVK, store the original 16-bit immediate
+            immValue = (long)imm16;
+            shiftType = Arm64ShiftType.LSL;
+            shiftAmount = shift;
+        }
+        else
+        {
+            // For MOVN and MOVZ, calculate the shifted value
+            immValue = (long)imm16 << shift;
+            //  If the instruction is 32-bit, we need to mask the immediate value to 32 bits
+            if (!is64Bit)
+                immValue &= 0xFFFFFFFF;
+        }
+        
         if (mnemonic==Arm64Mnemonic.MOVZ)
         {
             mnemonic = Arm64Mnemonic.MOV;
@@ -224,6 +241,8 @@ internal static class Arm64DataProcessingImmediate
             Op1Kind = Arm64OperandKind.Immediate,
             Op0Reg = regD,
             Op1Imm = immValue,
+            Op1ShiftType = shiftType,
+            MemExtendOrShiftAmount = shiftAmount,
             MnemonicCategory = Arm64MnemonicCategory.Move,
         };
     }
