@@ -45,6 +45,7 @@ internal static class Arm64FloatingPoint
             0b001 => Arm64Mnemonic.FCVTZU,
             0b010 => Arm64Mnemonic.SCVTF,
             0b011 => Arm64Mnemonic.UCVTF,
+            0b000100 => Arm64Mnemonic.FCVT,
             _ => throw new("Impossible opcode")
         };
         
@@ -205,7 +206,7 @@ internal static class Arm64FloatingPoint
             0b000001 => Arm64Mnemonic.FABS,
             0b000010 => Arm64Mnemonic.FNEG,
             0b000011 => Arm64Mnemonic.FSQRT,
-            0b000100 => throw new Arm64UndefinedInstructionException("Floating-point data-processing (1 source): opcode 0b000100 is reserved"),
+            0b000100 => Arm64Mnemonic.FCVT,
             0b000101 => Arm64Mnemonic.FCVT,
             0b000110 => throw new Arm64UndefinedInstructionException("Floating-point data-processing (1 source): opcode 0b000110 is reserved"),
             0b000111 => Arm64Mnemonic.FCVT,
@@ -243,7 +244,17 @@ internal static class Arm64FloatingPoint
 //  Fix FCVT 
         if (mnemonic == Arm64Mnemonic.FCVT)
         {
-            if (opcode == 0b000101) // FCVT D/S
+            if (opcode == 0b000100) // FCVT additional variant
+            {
+                regD = ptype switch
+                {
+                    0b00 => Arm64Register.H0 + rd, // S => H
+                    0b01 => Arm64Register.S0 + rd, // D => S  
+                    0b11 => Arm64Register.S0 + rd, // H => S
+                    _ => throw new("Impossible ptype")
+                };
+            }
+            else if (opcode == 0b000101) // FCVT D/S
             {
                 
                 regD = ptype switch
