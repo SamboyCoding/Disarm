@@ -442,6 +442,59 @@ internal static class Arm64NonScalarAdvancedSimd
             _ => throw new Arm64UndefinedInstructionException($"AdvancedSimdCopy: imm4 0x{imm4:X} is reserved")
         };
 
+        if (mnemonic == Arm64Mnemonic.DUP && imm4 == 0b0000)
+        {
+            // DUP (element) - duplicate vector element to vector or scalar
+            Arm64VectorElementWidth elementWidth;
+            uint elementIndex;
+            Arm64ArrangementSpecifier arrangement;
+            
+            if (imm5.TestBit(0))
+            {
+                // 8-bit elements
+                elementWidth = Arm64VectorElementWidth.B;
+                elementIndex = imm5 >> 1;
+                arrangement = qFlag ? Arm64ArrangementSpecifier.SixteenB : Arm64ArrangementSpecifier.EightB;
+            }
+            else if (imm5.TestBit(1))
+            {
+                // 16-bit elements  
+                elementWidth = Arm64VectorElementWidth.H;
+                elementIndex = imm5 >> 2;
+                arrangement = qFlag ? Arm64ArrangementSpecifier.EightH : Arm64ArrangementSpecifier.FourH;
+            }
+            else if (imm5.TestBit(2))
+            {
+                // 32-bit elements
+                elementWidth = Arm64VectorElementWidth.S;
+                elementIndex = imm5 >> 3;
+                arrangement = qFlag ? Arm64ArrangementSpecifier.FourS : Arm64ArrangementSpecifier.TwoS;
+            }
+            else if (imm5.TestBit(3))
+            {
+                // 64-bit elements
+                elementWidth = Arm64VectorElementWidth.D;
+                elementIndex = imm5 >> 4;
+                arrangement = qFlag ? Arm64ArrangementSpecifier.TwoD : throw new Arm64UndefinedInstructionException("DUP: 64-bit scalar not supported in this context");
+            }
+            else
+            {
+                throw new Arm64UndefinedInstructionException("DUP: invalid imm5 value");
+            }
+
+            return new()
+            {
+                Mnemonic = Arm64Mnemonic.DUP,
+                Op0Kind = Arm64OperandKind.Register,
+                Op0Reg = Arm64Register.V0 + rd,
+                Op0Arrangement = arrangement,
+                Op1Kind = Arm64OperandKind.VectorRegisterElement,
+                Op1Reg = Arm64Register.V0 + rn,
+                Op1VectorElement = new Arm64VectorElement(elementWidth, (int)elementIndex),
+                MnemonicCategory = Arm64MnemonicCategory.SimdRegisterToRegister,
+            };
+        }
+
         return new()
         {
             Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
