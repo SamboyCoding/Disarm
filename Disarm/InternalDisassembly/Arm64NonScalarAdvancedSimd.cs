@@ -513,10 +513,52 @@ internal static class Arm64NonScalarAdvancedSimd
 
     private static Arm64Instruction AdvancedSimdPermute(uint instruction)
     {
+        var q = instruction.TestBit(30);
+        var size = (instruction >> 22) & 0b11;
+        var rm = (int)(instruction >> 16) & 0b11111;
+        var opcode = (instruction >> 12) & 0b111;
+        var rn = (int)(instruction >> 5) & 0b11111;
+        var rd = (int)instruction & 0b11111;
+
+        // Determine mnemonic based on opcode
+        Arm64Mnemonic mnemonic = opcode switch
+        {
+            0b001 => Arm64Mnemonic.UZP1,
+            0b101 => Arm64Mnemonic.TRN1,
+            0b011 => Arm64Mnemonic.ZIP1,
+            0b000 => Arm64Mnemonic.UZP2,
+            0b100 => Arm64Mnemonic.TRN2,
+            0b010 => Arm64Mnemonic.ZIP2,
+            _ => throw new Arm64UndefinedInstructionException($"AdvancedSimdPermute: Invalid opcode 0x{opcode:X}")
+        };
+
+        // Determine arrangement based on size and q
+        Arm64ArrangementSpecifier arrangement = size switch
+        {
+            0b00 when q => Arm64ArrangementSpecifier.SixteenB,
+            0b00 => Arm64ArrangementSpecifier.EightB,
+            0b01 when q => Arm64ArrangementSpecifier.EightH,
+            0b01 => Arm64ArrangementSpecifier.FourH,
+            0b10 when q => Arm64ArrangementSpecifier.FourS,
+            0b10 => Arm64ArrangementSpecifier.TwoS,
+            0b11 when q => Arm64ArrangementSpecifier.TwoD,
+            0b11 => throw new Arm64UndefinedInstructionException("AdvancedSimdPermute: size=11, q=0 is reserved"),
+            _ => throw new("Impossible size")
+        };
+
         return new()
         {
-            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
-            MnemonicCategory = Arm64MnemonicCategory.SimdRegisterToRegister, 
+            Mnemonic = mnemonic,
+            Op0Kind = Arm64OperandKind.Register,
+            Op0Reg = Arm64Register.V0 + rd,
+            Op0Arrangement = arrangement,
+            Op1Kind = Arm64OperandKind.Register,
+            Op1Reg = Arm64Register.V0 + rn,
+            Op1Arrangement = arrangement,
+            Op2Kind = Arm64OperandKind.Register,
+            Op2Reg = Arm64Register.V0 + rm,
+            Op2Arrangement = arrangement,
+            MnemonicCategory = Arm64MnemonicCategory.SimdVectorMath,
         };
     }
 
