@@ -51,7 +51,7 @@ internal static class Arm64NonScalarAdvancedSimd
         if (op2 == 0b1111 && (op3 & 0b1_1000_0011) == 0b10)
             return AdvancedSimdTwoRegisterMiscFp16(instruction);
 
-        if ((op2UpperHalf & 1) == 0 && (op3 * 0b100001) == 0b100001)
+        if ((op2UpperHalf & 1) == 0 && (op3 & 0b100001) == 0b100001)
             return AdvancedSimdThreeRegExtension(instruction);
 
         if (op2 is 0b0100 or 0b1100 && (op3 & 0b110000011) == 0b10)
@@ -658,7 +658,51 @@ internal static class Arm64NonScalarAdvancedSimd
         if (u)
             mnemonic = opcode switch
             {
-                _ => throw new NotImplementedException()
+                0b00000 => Arm64Mnemonic.UHADD,
+                0b00001 => Arm64Mnemonic.UQADD,
+                0b00010 => Arm64Mnemonic.URHADD,
+                0b00011 when size is 0b00 => Arm64Mnemonic.EOR,
+                0b00011 when size is 0b01 => Arm64Mnemonic.BSL,
+                0b00011 when size is 0b10 => Arm64Mnemonic.BIT,
+                0b00011 when size is 0b11 => Arm64Mnemonic.BIF,
+                0b00100 => Arm64Mnemonic.UHSUB,
+                0b00101 => Arm64Mnemonic.UQSUB,
+                0b00110 => Arm64Mnemonic.CMHI,
+                0b00111 => Arm64Mnemonic.CMHS,
+                0b01000 => Arm64Mnemonic.USHL,
+                0b01001 => Arm64Mnemonic.UQSHL,
+                0b01010 => Arm64Mnemonic.URSHL,
+                0b01011 => Arm64Mnemonic.UQRSHL,
+                0b01100 => Arm64Mnemonic.UMAX,
+                0b01101 => Arm64Mnemonic.UMIN,
+                0b01110 => Arm64Mnemonic.UABD,
+                0b01111 => Arm64Mnemonic.UABA,
+                0b10000 => Arm64Mnemonic.SUB,
+                0b10001 => Arm64Mnemonic.CMEQ,
+                0b10010 => Arm64Mnemonic.MLS,
+                0b10011 => Arm64Mnemonic.PMUL,
+                0b10100 => Arm64Mnemonic.UMAXP,
+                0b10101 => Arm64Mnemonic.UMINP,
+                0b10110 => Arm64Mnemonic.SQRDMULH,
+                0b10111 when size is 0b00 => throw new Arm64UndefinedInstructionException("Advanced SIMD three same: U=1, opcode=0b10111, size=0b00"),
+                0b10111 when size is 0b01 => throw new Arm64UndefinedInstructionException("Advanced SIMD three same: U=1, opcode=0b10111, size=0b01"),
+                0b10111 when size is 0b10 => throw new Arm64UndefinedInstructionException("Advanced SIMD three same: U=1, opcode=0b10111, size=0b10"),
+                0b10111 when size is 0b11 => throw new Arm64UndefinedInstructionException("Advanced SIMD three same: U=1, opcode=0b10111, size=0b11"),
+                0b11000 when !sizeHi => Arm64Mnemonic.FMAXNMP,
+                0b11000 => Arm64Mnemonic.FMINNMP,
+                0b11001 => throw new Arm64UndefinedInstructionException("Advanced SIMD three same: U=1, opcode=0b11001"),
+                0b11010 when !sizeHi => Arm64Mnemonic.FADDP,
+                0b11010 => throw new Arm64UndefinedInstructionException("Advanced SIMD three same: U=1, opcode=0b11010 with high size bit set"),
+                0b11011 when !sizeHi => Arm64Mnemonic.FMUL,
+                0b11011 => throw new Arm64UndefinedInstructionException("Advanced SIMD three same: U=1, opcode=0b11011 with high size bit set"),
+                0b11100 when !sizeHi => Arm64Mnemonic.FCMGE,
+                0b11100 => Arm64Mnemonic.FCMGT,
+                0b11101 => throw new Arm64UndefinedInstructionException("Advanced SIMD three same: U=1, opcode=0b11101"),
+                0b11110 when !sizeHi => Arm64Mnemonic.FMAXP,
+                0b11110 => Arm64Mnemonic.FMINP,
+                0b11111 when !sizeHi => Arm64Mnemonic.FDIV,
+                0b11111 => throw new Arm64UndefinedInstructionException("Advanced SIMD three same: U=1, opcode=0b11111 with high size bit set"),
+                _ => throw new("Impossible opcode")
             };
         else
             mnemonic = opcode switch
@@ -713,7 +757,9 @@ internal static class Arm64NonScalarAdvancedSimd
 
         var category = mnemonic switch
         {
-            Arm64Mnemonic.CMGT or Arm64Mnemonic.CMGE or Arm64Mnemonic.CMTST => Arm64MnemonicCategory.SimdComparison,
+            Arm64Mnemonic.CMGT or Arm64Mnemonic.CMGE or Arm64Mnemonic.CMTST or 
+            Arm64Mnemonic.CMHI or Arm64Mnemonic.CMHS or Arm64Mnemonic.CMEQ or
+            Arm64Mnemonic.FCMEQ or Arm64Mnemonic.FCMGE or Arm64Mnemonic.FCMGT => Arm64MnemonicCategory.SimdComparison,
             _ => Arm64MnemonicCategory.SimdVectorMath,
         };
 
@@ -725,7 +771,8 @@ internal static class Arm64NonScalarAdvancedSimd
         Arm64ArrangementSpecifier arrangement;
         Arm64Register baseReg;
 
-        if (mnemonic is Arm64Mnemonic.AND or Arm64Mnemonic.BIC or Arm64Mnemonic.ORR or Arm64Mnemonic.ORN)
+        if (mnemonic is Arm64Mnemonic.AND or Arm64Mnemonic.BIC or Arm64Mnemonic.ORR or Arm64Mnemonic.ORN or
+                      Arm64Mnemonic.EOR or Arm64Mnemonic.BSL or Arm64Mnemonic.BIT or Arm64Mnemonic.BIF)
         {
             baseReg = Arm64Register.V0;
             arrangement = q ? Arm64ArrangementSpecifier.SixteenB : Arm64ArrangementSpecifier.EightB;
@@ -733,15 +780,7 @@ internal static class Arm64NonScalarAdvancedSimd
         else if (opcode < 0b11000)
         {
             //"Simple" instructions 
-            baseReg = size switch
-            {
-                //TODO This logic is wrong for some instructions (e.g. SMIN), revisit
-                0b00 => Arm64Register.B0,
-                0b01 => Arm64Register.H0,
-                0b10 => Arm64Register.S0,
-                0b11 => Arm64Register.D0,
-                _ => throw new("Impossible size")
-            };
+            baseReg = Arm64Register.V0;
 
             //This logic should be ok though
             arrangement = size switch
@@ -752,6 +791,8 @@ internal static class Arm64NonScalarAdvancedSimd
                 0b01 => Arm64ArrangementSpecifier.FourH,
                 0b10 when q => Arm64ArrangementSpecifier.FourS,
                 0b10 => Arm64ArrangementSpecifier.TwoS,
+                0b11 when q => Arm64ArrangementSpecifier.TwoD,
+                0b11 => Arm64ArrangementSpecifier.None, // Scalar D register
                 _ => throw new("Impossible size")
             };
         }
