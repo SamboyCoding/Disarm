@@ -14,7 +14,7 @@ internal static class Arm64NonScalarAdvancedSimd
         var op3Lo = (op3 & 1) == 1;
 
         if (op1 == 0b11)
-            throw new Arm64UndefinedInstructionException("Advanced SIMD instruction with op1 == 11");
+            return AdvancedSimdVectorXIndexedElement(instruction);
 
         //Handle the couple of cases where op1 is not simply 0b0x
         if (op1 == 0b10)
@@ -234,11 +234,158 @@ internal static class Arm64NonScalarAdvancedSimd
 
     private static Arm64Instruction AdvancedSimdVectorXIndexedElement(uint instruction)
     {
-        return new()
+        var q = instruction.TestBit(30); // Bit 30
+        var u = instruction.TestBit(29); // Bit 29
+        var size = (instruction >> 22) & 0b11; // Bits 22-23
+        var l = instruction.TestBit(21); // Bit 21
+        var m = instruction.TestBit(20); // Bit 20
+        var rm = (int)(instruction >> 16) & 0b1111; // Bits 16-19
+        var opcode = (instruction >> 12) & 0b1111; // Bits 12-15
+        var h = instruction.TestBit(11); // Bit 11
+        var rn = (int)(instruction >> 5) & 0b1_1111; // Bits 5-9
+        var rd = (int)instruction & 0b1_1111; // Bits 0-4
+
+        // Determine mnemonic based on U and opcode
+        Arm64Mnemonic mnemonic;
+        if (u)
         {
-            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+            mnemonic = opcode switch
+            {
+                0b1001 when size != 0b01 => Arm64Mnemonic.FMULX,
+                0b0010 => Arm64Mnemonic.UMLAL,
+                0b0110 => Arm64Mnemonic.UMLSL,
+                0b1010 => Arm64Mnemonic.UMULL,
+                0b1101 => Arm64Mnemonic.SQRDMLAH,
+                0b1111 => Arm64Mnemonic.SQRDMLSH,
+                _ => throw new Arm64UndefinedInstructionException("AdvancedSimdVectorXIndexedElement: Unallocated U=1 opcode")
+            };
+        }
+        else
+        {
+            mnemonic = opcode switch
+            {
+                0b0001 when size != 0b01 => Arm64Mnemonic.FMLA,
+                0b0101 when size != 0b01 => Arm64Mnemonic.FMLS,
+                0b1001 when size != 0b01 => Arm64Mnemonic.FMUL,
+                0b0010 => Arm64Mnemonic.SMLAL,
+                0b0110 => Arm64Mnemonic.SMLSL,
+                0b1010 => Arm64Mnemonic.SMULL,
+                0b0011 => Arm64Mnemonic.SQDMLAL,
+                0b0111 => Arm64Mnemonic.SQDMLSL,
+                0b1011 => Arm64Mnemonic.SQDMULL,
+                0b1100 => Arm64Mnemonic.SQDMULH,
+                0b1101 => Arm64Mnemonic.SQRDMULH,
+                _ => throw new Arm64UndefinedInstructionException("AdvancedSimdVectorXIndexedElement: Unallocated U=0 opcode")
+            };
+        }
+
+        var result = new Arm64Instruction()
+        {
+            Mnemonic = mnemonic,
             MnemonicCategory = Arm64MnemonicCategory.SimdVectorMath,
+            Op0Kind = Arm64OperandKind.Register,
+            Op1Kind = Arm64OperandKind.Register,
+            Op2Kind = Arm64OperandKind.VectorRegisterElement,
         };
+
+        // Set up operands based on instruction type
+        if (mnemonic is Arm64Mnemonic.FMLA or Arm64Mnemonic.FMLS or Arm64Mnemonic.FMUL or Arm64Mnemonic.FMULX)
+        {
+            // Floating-point instructions
+            var arrangement = size switch
+            {
+                0b00 => q ? Arm64ArrangementSpecifier.EightH : Arm64ArrangementSpecifier.FourH, // FP16
+                0b10 => q ? Arm64ArrangementSpecifier.FourS : Arm64ArrangementSpecifier.TwoS,   // Single
+                0b11 => q ? Arm64ArrangementSpecifier.TwoD : throw new Arm64UndefinedInstructionException("Reserved"), // Double
+                _ => throw new Arm64UndefinedInstructionException("Reserved size for FP")
+            };
+
+            var elementWidth = size switch
+            {
+                0b00 => Arm64VectorElementWidth.H,
+                0b10 => Arm64VectorElementWidth.S,
+                0b11 => Arm64VectorElementWidth.D,
+                _ => throw new Arm64UndefinedInstructionException("Reserved")
+            };
+
+            var elementIndex = size switch
+            {
+                0b00 => (h ? 4 : 0) | (l ? 2 : 0) | (m ? 1 : 0), // H:L:M for FP16
+                0b10 => (h ? 2 : 0) | (l ? 1 : 0),               // H:L for Single
+                0b11 => h ? 1 : 0,                               // H for Double
+                _ => throw new Arm64UndefinedInstructionException("Reserved")
+            };
+
+            result = result with
+            {
+                Op0Reg = Arm64Register.V0 + rd,
+                Op0Arrangement = arrangement,
+                Op1Reg = Arm64Register.V0 + rn,
+                Op1Arrangement = arrangement,
+                Op2Reg = Arm64Register.V0 + (rm | (m ? 16 : 0)),
+                Op2VectorElement = new Arm64VectorElement(elementWidth, elementIndex)
+            };
+        }
+        else
+        {
+            // Integer instructions - these have different source and destination arrangements
+            var srcArrangement = size switch
+            {
+                0b01 => q ? Arm64ArrangementSpecifier.EightH : Arm64ArrangementSpecifier.FourH,
+                0b10 => q ? Arm64ArrangementSpecifier.FourS : Arm64ArrangementSpecifier.TwoS,
+                _ => throw new Arm64UndefinedInstructionException("Reserved size for integer")
+            };
+
+            var dstArrangement = size switch
+            {
+                0b01 => q ? Arm64ArrangementSpecifier.FourS : Arm64ArrangementSpecifier.TwoS,
+                0b10 => q ? Arm64ArrangementSpecifier.TwoD : Arm64ArrangementSpecifier.None,
+                _ => throw new Arm64UndefinedInstructionException("Reserved size for integer")
+            };
+
+            var elementWidth = size switch
+            {
+                0b01 => Arm64VectorElementWidth.H,
+                0b10 => Arm64VectorElementWidth.S,
+                _ => throw new Arm64UndefinedInstructionException("Reserved")
+            };
+
+            var elementIndex = size switch
+            {
+                0b01 => (h ? 4 : 0) | (l ? 2 : 0) | (m ? 1 : 0), // H:L:M for 16-bit
+                0b10 => (h ? 2 : 0) | (l ? 1 : 0),               // H:L for 32-bit
+                _ => throw new Arm64UndefinedInstructionException("Reserved")
+            };
+
+            // For SQDMULH and SQRDMULH, source and destination have same arrangement
+            if (mnemonic is Arm64Mnemonic.SQDMULH or Arm64Mnemonic.SQRDMULH or Arm64Mnemonic.SQRDMLAH or Arm64Mnemonic.SQRDMLSH)
+            {
+                result = result with
+                {
+                    Op0Reg = Arm64Register.V0 + rd,
+                    Op0Arrangement = srcArrangement,
+                    Op1Reg = Arm64Register.V0 + rn,
+                    Op1Arrangement = srcArrangement,
+                    Op2Reg = Arm64Register.V0 + (rm | (m ? 16 : 0)),
+                    Op2VectorElement = new Arm64VectorElement(elementWidth, elementIndex)
+                };
+            }
+            else
+            {
+                // For other integer instructions, destination is wider
+                result = result with
+                {
+                    Op0Reg = Arm64Register.V0 + rd,
+                    Op0Arrangement = dstArrangement,
+                    Op1Reg = Arm64Register.V0 + rn,
+                    Op1Arrangement = srcArrangement,
+                    Op2Reg = Arm64Register.V0 + (rm | (m ? 16 : 0)),
+                    Op2VectorElement = new Arm64VectorElement(elementWidth, elementIndex)
+                };
+            }
+        }
+
+        return result;
     }
 
     private static Arm64Instruction AdvancedSimdCopy(uint instruction)
