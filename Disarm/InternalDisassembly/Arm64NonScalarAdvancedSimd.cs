@@ -558,10 +558,107 @@ internal static class Arm64NonScalarAdvancedSimd
 
     private static Arm64Instruction AdvancedSimdTwoRegisterMisc(uint instruction)
     {
+        var q = instruction.TestBit(30);
+        var u = instruction.TestBit(29);
+        var size = (instruction >> 22) & 0b11;
+        var opcode = (instruction >> 12) & 0b1_1111;
+        var rn = (int)((instruction >> 5) & 0b1_1111);
+        var rd = (int)(instruction & 0b1_1111);
+
+        Arm64Mnemonic mnemonic;
+        
+        if (u)
+        {
+            mnemonic = opcode switch
+            {
+                0b00000 when size != 0b11 => Arm64Mnemonic.REV32,
+                0b00001 when size is 0b00 or 0b01 => Arm64Mnemonic.REV16,
+                0b00010 => Arm64Mnemonic.UADDLP,
+                0b00011 => Arm64Mnemonic.USQADD,
+                0b00100 => Arm64Mnemonic.CLZ,
+                0b00101 => Arm64Mnemonic.CLZ,
+                0b00111 => Arm64Mnemonic.SQNEG,
+                0b01000 => Arm64Mnemonic.CMGE,
+                0b01001 => Arm64Mnemonic.CMLE,
+                0b01010 => Arm64Mnemonic.FCMGT,
+                0b01011 => Arm64Mnemonic.FCMGE,
+                0b10010 => Arm64Mnemonic.SQXTUN,
+                0b10100 => Arm64Mnemonic.UQXTN,
+                0b10110 when size != 0b11 => Arm64Mnemonic.FCVTXN,
+                0b11000 when size != 0b11 => Arm64Mnemonic.FRINTA,
+                0b11001 when size != 0b11 => Arm64Mnemonic.FRINTX,
+                0b11010 when size != 0b11 => Arm64Mnemonic.FCVTNU,
+                0b11011 when size != 0b11 => Arm64Mnemonic.FCVTMU,
+                0b11100 when size != 0b11 => Arm64Mnemonic.FCVTAU,
+                0b11101 when size != 0b11 => Arm64Mnemonic.UCVTF,
+                0b11111 when size != 0b11 => Arm64Mnemonic.FRSQRTE,
+                _ => throw new Arm64UndefinedInstructionException($"AdvancedSimdTwoRegisterMisc: U=1, opcode=0x{opcode:X}, size=0x{size:X}")
+            };
+        }
+        else
+        {
+            mnemonic = opcode switch
+            {
+                0b00000 when size != 0b11 => Arm64Mnemonic.REV64,
+                0b00001 when size is 0b00 or 0b01 => Arm64Mnemonic.REV32,
+                0b00010 => Arm64Mnemonic.SADDLP,
+                0b00011 => Arm64Mnemonic.SUQADD,
+                0b00100 => Arm64Mnemonic.CLS,
+                0b00101 when size is 0b00 => Arm64Mnemonic.CNT,
+                0b00101 => throw new Arm64UndefinedInstructionException($"AdvancedSimdTwoRegisterMisc: U=0, opcode=0b00101, size=0x{size:X} (CNT only valid for size=0b00)"),
+                0b00110 => Arm64Mnemonic.SADALP,
+                0b00111 => Arm64Mnemonic.SQABS,
+                0b01000 => Arm64Mnemonic.CMGT,
+                0b01001 => Arm64Mnemonic.CMEQ,
+                0b01010 => Arm64Mnemonic.CMLT,
+                0b01011 => Arm64Mnemonic.ABS,
+                0b10010 => Arm64Mnemonic.XTN,
+                0b10100 => Arm64Mnemonic.SQXTN,
+                0b10110 when size != 0b11 => Arm64Mnemonic.FCVTN,
+                0b10111 when size != 0b11 => Arm64Mnemonic.FCVTL,
+                0b11000 when size != 0b11 => Arm64Mnemonic.FRINTN,
+                0b11001 when size != 0b11 => Arm64Mnemonic.FRINTM,
+                0b11010 when size != 0b11 => Arm64Mnemonic.FCVTNS,
+                0b11011 when size != 0b11 => Arm64Mnemonic.FCVTMS,
+                0b11100 when size != 0b11 => Arm64Mnemonic.FCVTAS,
+                0b11101 when size != 0b11 => Arm64Mnemonic.SCVTF,
+                0b11111 when size != 0b11 => Arm64Mnemonic.FRECPE,
+                _ => throw new Arm64UndefinedInstructionException($"AdvancedSimdTwoRegisterMisc: U=0, opcode=0x{opcode:X}, size=0x{size:X}")
+            };
+        }
+
+        // Determine arrangement based on size and q
+        Arm64ArrangementSpecifier arrangement = size switch
+        {
+            0b00 when q => Arm64ArrangementSpecifier.SixteenB,
+            0b00 => Arm64ArrangementSpecifier.EightB,
+            0b01 when q => Arm64ArrangementSpecifier.EightH,
+            0b01 => Arm64ArrangementSpecifier.FourH,
+            0b10 when q => Arm64ArrangementSpecifier.FourS,
+            0b10 => Arm64ArrangementSpecifier.TwoS,
+            0b11 when q => Arm64ArrangementSpecifier.TwoD,
+            0b11 => Arm64ArrangementSpecifier.None, // Scalar D register
+            _ => throw new("Impossible size")
+        };
+
+        var category = mnemonic switch
+        {
+            Arm64Mnemonic.CMGT or Arm64Mnemonic.CMEQ or Arm64Mnemonic.CMLT or 
+            Arm64Mnemonic.CMGE or Arm64Mnemonic.CMLE or 
+            Arm64Mnemonic.FCMGT or Arm64Mnemonic.FCMGE => Arm64MnemonicCategory.SimdComparison,
+            _ => Arm64MnemonicCategory.SimdVectorMath,
+        };
+
         return new()
         {
-            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
-            MnemonicCategory = Arm64MnemonicCategory.Unspecified, //could be comparison, math, general data processing, or comparison
+            Mnemonic = mnemonic,
+            Op0Kind = Arm64OperandKind.Register,
+            Op0Reg = Arm64Register.V0 + rd,
+            Op0Arrangement = arrangement,
+            Op1Kind = Arm64OperandKind.Register,
+            Op1Reg = Arm64Register.V0 + rn,
+            Op1Arrangement = arrangement,
+            MnemonicCategory = category,
         };
     }
 
