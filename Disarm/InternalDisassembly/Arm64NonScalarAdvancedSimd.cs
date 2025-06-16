@@ -216,9 +216,11 @@ internal static class Arm64NonScalarAdvancedSimd
             Op0Arrangement = arrangement,
             Op1Kind = Arm64OperandKind.Immediate,
             Op1Imm = immediate,
-            Op2Kind = shiftAmount > 0 ? Arm64OperandKind.Immediate : Arm64OperandKind.None,
-            Op2Imm = shiftAmount,
-            Op2ShiftType = shiftAmount > 0 ? Arm64ShiftType.LSL : Arm64ShiftType.NONE,
+            Op1ShiftType = shiftAmount > 0 ? Arm64ShiftType.LSL : Arm64ShiftType.NONE,
+            Op2Kind = Arm64OperandKind.None,
+            Op2Imm = 0,
+            Op2ShiftType = Arm64ShiftType.NONE,
+            MemExtendOrShiftAmount = shiftAmount,
             MnemonicCategory = Arm64MnemonicCategory.SimdConstantToRegister,
         };
     }
