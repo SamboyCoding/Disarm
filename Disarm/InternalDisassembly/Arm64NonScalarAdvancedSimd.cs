@@ -497,6 +497,161 @@ internal static class Arm64NonScalarAdvancedSimd
             };
         }
 
+        if (mnemonic == Arm64Mnemonic.DUP && imm4 == 0b0001)
+        {
+            // DUP (general) - duplicate general register to vector
+            Arm64ArrangementSpecifier arrangement;
+            Arm64Register srcReg;
+            
+            if (imm5.TestBit(0))
+            {
+                // 8-bit elements
+                arrangement = qFlag ? Arm64ArrangementSpecifier.SixteenB : Arm64ArrangementSpecifier.EightB;
+                srcReg = Arm64Register.W0 + rn;
+            }
+            else if (imm5.TestBit(1))
+            {
+                // 16-bit elements  
+                arrangement = qFlag ? Arm64ArrangementSpecifier.EightH : Arm64ArrangementSpecifier.FourH;
+                srcReg = Arm64Register.W0 + rn;
+            }
+            else if (imm5.TestBit(2))
+            {
+                // 32-bit elements
+                arrangement = qFlag ? Arm64ArrangementSpecifier.FourS : Arm64ArrangementSpecifier.TwoS;
+                srcReg = Arm64Register.W0 + rn;
+            }
+            else if (imm5.TestBit(3))
+            {
+                // 64-bit elements
+                arrangement = qFlag ? Arm64ArrangementSpecifier.TwoD : throw new Arm64UndefinedInstructionException("DUP: 64-bit scalar not supported in this context");
+                srcReg = Arm64Register.X0 + rn;
+            }
+            else
+            {
+                throw new Arm64UndefinedInstructionException("DUP: invalid imm5 value");
+            }
+
+            return new()
+            {
+                Mnemonic = Arm64Mnemonic.DUP,
+                Op0Kind = Arm64OperandKind.Register,
+                Op0Reg = Arm64Register.V0 + rd,
+                Op0Arrangement = arrangement,
+                Op1Kind = Arm64OperandKind.Register,
+                Op1Reg = srcReg,
+                MnemonicCategory = Arm64MnemonicCategory.SimdRegisterToRegister,
+            };
+        }
+
+        if (mnemonic == Arm64Mnemonic.SMOV || mnemonic == Arm64Mnemonic.UMOV)
+        {
+            // SMOV/UMOV - move vector element to general register (with sign/zero extension)
+            Arm64VectorElementWidth elementWidth;
+            uint elementIndex;
+            Arm64Register dstReg;
+            
+            if (imm5.TestBit(0))
+            {
+                // 8-bit elements
+                elementWidth = Arm64VectorElementWidth.B;
+                elementIndex = imm5 >> 1;
+                dstReg = qFlag ? Arm64Register.X0 + rd : Arm64Register.W0 + rd;
+            }
+            else if (imm5.TestBit(1))
+            {
+                // 16-bit elements  
+                elementWidth = Arm64VectorElementWidth.H;
+                elementIndex = imm5 >> 2;
+                dstReg = qFlag ? Arm64Register.X0 + rd : Arm64Register.W0 + rd;
+            }
+            else if (imm5.TestBit(2))
+            {
+                // 32-bit elements (only valid for UMOV)
+                if (mnemonic == Arm64Mnemonic.SMOV)
+                    throw new Arm64UndefinedInstructionException("SMOV: 32-bit elements not supported");
+                elementWidth = Arm64VectorElementWidth.S;
+                elementIndex = imm5 >> 3;
+                dstReg = qFlag ? Arm64Register.X0 + rd : Arm64Register.W0 + rd;
+            }
+            else if (imm5.TestBit(3))
+            {
+                // 64-bit elements (only valid for UMOV with qFlag set)
+                if (mnemonic == Arm64Mnemonic.SMOV || !qFlag)
+                    throw new Arm64UndefinedInstructionException("UMOV: 64-bit elements only valid with qFlag set");
+                elementWidth = Arm64VectorElementWidth.D;
+                elementIndex = imm5 >> 4;
+                dstReg = Arm64Register.X0 + rd;
+            }
+            else
+            {
+                throw new Arm64UndefinedInstructionException("SMOV/UMOV: invalid imm5 value");
+            }
+
+            return new()
+            {
+                Mnemonic = mnemonic,
+                Op0Kind = Arm64OperandKind.Register,
+                Op0Reg = dstReg,
+                Op1Kind = Arm64OperandKind.VectorRegisterElement,
+                Op1Reg = Arm64Register.V0 + rn,
+                Op1VectorElement = new Arm64VectorElement(elementWidth, (int)elementIndex),
+                MnemonicCategory = Arm64MnemonicCategory.SimdRegisterToRegister,
+            };
+        }
+
+        if (mnemonic == Arm64Mnemonic.INS && imm4 == 0b0011)
+        {
+            // INS (general) - insert general register into vector element
+            Arm64VectorElementWidth elementWidth;
+            uint elementIndex;
+            Arm64Register srcReg;
+            
+            if (imm5.TestBit(0))
+            {
+                // 8-bit elements
+                elementWidth = Arm64VectorElementWidth.B;
+                elementIndex = imm5 >> 1;
+                srcReg = Arm64Register.W0 + rn;
+            }
+            else if (imm5.TestBit(1))
+            {
+                // 16-bit elements  
+                elementWidth = Arm64VectorElementWidth.H;
+                elementIndex = imm5 >> 2;
+                srcReg = Arm64Register.W0 + rn;
+            }
+            else if (imm5.TestBit(2))
+            {
+                // 32-bit elements
+                elementWidth = Arm64VectorElementWidth.S;
+                elementIndex = imm5 >> 3;
+                srcReg = Arm64Register.W0 + rn;
+            }
+            else if (imm5.TestBit(3))
+            {
+                // 64-bit elements
+                elementWidth = Arm64VectorElementWidth.D;
+                elementIndex = imm5 >> 4;
+                srcReg = Arm64Register.X0 + rn;
+            }
+            else
+            {
+                throw new Arm64UndefinedInstructionException("INS: invalid imm5 value");
+            }
+
+            return new()
+            {
+                Mnemonic = Arm64Mnemonic.INS,
+                Op0Kind = Arm64OperandKind.VectorRegisterElement,
+                Op0Reg = Arm64Register.V0 + rd,
+                Op0VectorElement = new Arm64VectorElement(elementWidth, (int)elementIndex),
+                Op1Kind = Arm64OperandKind.Register,
+                Op1Reg = srcReg,
+                MnemonicCategory = Arm64MnemonicCategory.SimdRegisterToRegister,
+            };
+        }
+
         return new()
         {
             Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,

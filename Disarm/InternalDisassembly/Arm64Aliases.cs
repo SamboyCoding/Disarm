@@ -101,6 +101,20 @@ internal static class Arm64Aliases
             
         }
 
+        // CSNEG Rd, Rn, Rm, cond => CNEG Rd, Rn, !cond when Rn == Rm
+        if (instruction.Mnemonic == Arm64Mnemonic.CSNEG && instruction.FinalOpConditionCode is not Arm64ConditionCode.AL and not Arm64ConditionCode.NV && instruction.Op2Kind == Arm64OperandKind.Register && instruction.Op1Kind == Arm64OperandKind.Register)
+        {
+            if(!instruction.Op2Reg.IsSp() && !instruction.Op1Reg.IsSp() && instruction.Op1Reg == instruction.Op2Reg)
+            {
+                //CSNEG Rd, Rn, Rn, COND => CNEG Rd, Rn, !COND
+                instruction.FinalOpConditionCode = instruction.FinalOpConditionCode.Invert();
+                instruction.Op2Kind = Arm64OperandKind.None;
+                instruction.Op2Reg = Arm64Register.INVALID;
+                instruction.Mnemonic = Arm64Mnemonic.CNEG;
+                return;
+            }
+        }
+
         if (instruction.Mnemonic == Arm64Mnemonic.SBFM && instruction.Op2Kind == Arm64OperandKind.Immediate && instruction.Op3Kind == Arm64OperandKind.Immediate && instruction.Op2Imm == 0)
         {
             //Check imm3
