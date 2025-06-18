@@ -194,7 +194,9 @@ public struct Arm64Instruction
                 sb.Append(",").Append(shiftType).Append("#").Append(shiftAmount);
         } else if (kind == Arm64OperandKind.FloatingPointImmediate)
         {
+            sb.Append("#");
             sb.Append(fpImm.ToString(CultureInfo.InvariantCulture));
+            
         }
         else if(kind == Arm64OperandKind.ImmediatePcRelative)
             sb.Append("0x").Append(((long) Address + imm).ToString("X"));
