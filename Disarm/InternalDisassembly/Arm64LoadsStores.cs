@@ -449,6 +449,14 @@ internal static class Arm64LoadsStores
                 3 => Arm64Register.D0,
                 _ => throw new("Impossible size")
             },
+            Arm64Mnemonic.STR or Arm64Mnemonic.LDR when isVector && opc is 1 => size switch
+            {
+                0 => Arm64Register.B0,
+                1 => Arm64Register.H0,
+                2 => Arm64Register.S0,
+                3 => Arm64Register.D0,
+                _ => throw new("Impossible size")
+            },
             Arm64Mnemonic.STR or Arm64Mnemonic.LDR when isVector => Arm64Register.V0, //128-bit vector
             Arm64Mnemonic.STRB or Arm64Mnemonic.LDRB or Arm64Mnemonic.STRH or Arm64Mnemonic.LDRH => Arm64Register.W0,
             Arm64Mnemonic.STR or Arm64Mnemonic.LDR when size is 0b10 => Arm64Register.W0,
@@ -702,6 +710,7 @@ internal static class Arm64LoadsStores
                 
                 mnemonic = opc == 0b10 ? Arm64Mnemonic.STR : Arm64Mnemonic.LDR;
                 baseReg = Arm64Register.V0; //128-bit variant
+                immediate <<= 4;
             }
             else
             {
@@ -872,6 +881,14 @@ internal static class Arm64LoadsStores
                 3 => Arm64Register.D0,
                 _ => throw new("Impossible size")
             },
+            Arm64Mnemonic.STR or Arm64Mnemonic.LDR when isVector && opc is 1 => size switch
+            {
+                0 => Arm64Register.B0,
+                1 => Arm64Register.H0,
+                2 => Arm64Register.S0,
+                3 => Arm64Register.D0,
+                _ => throw new("Impossible size")
+            },
             Arm64Mnemonic.STR or Arm64Mnemonic.LDR when isVector => Arm64Register.V0, //128-bit vector
             Arm64Mnemonic.STRB or Arm64Mnemonic.LDRB or Arm64Mnemonic.STRH or Arm64Mnemonic.LDRH => Arm64Register.W0,
             Arm64Mnemonic.STR or Arm64Mnemonic.LDR when size is 0b10 => Arm64Register.W0,
@@ -986,6 +1003,14 @@ internal static class Arm64LoadsStores
         var baseReg = mnemonic switch
         {
             Arm64Mnemonic.STUR or Arm64Mnemonic.LDUR when isVector && opc is 0 => size switch
+            {
+                0 => Arm64Register.B0,
+                1 => Arm64Register.H0,
+                2 => Arm64Register.S0,
+                3 => Arm64Register.D0,
+                _ => throw new("Impossible size")
+            },
+            Arm64Mnemonic.STUR or Arm64Mnemonic.LDUR when isVector && opc is 1 => size switch
             {
                 0 => Arm64Register.B0,
                 1 => Arm64Register.H0,
