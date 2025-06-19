@@ -144,24 +144,6 @@ internal static class Arm64Aliases
             
             return;
         }
-
-        if (instruction.Mnemonic == Arm64Mnemonic.INS && instruction.Op0Kind == Arm64OperandKind.VectorRegisterElement && instruction.Op1Kind == Arm64OperandKind.VectorRegisterElement)
-        {
-            //INS Vd.Ts[i1], Vn.Ts[i2] => MOV Vd.Ts[i1], Vn.Ts[i2]
-            //i.e. just change INS to MOV
-            instruction.Mnemonic = Arm64Mnemonic.MOV;
-            
-            //Category remains SimdRegisterToRegister
-            return;
-        }
-
-        if (instruction.Mnemonic == Arm64Mnemonic.DUP && instruction.Op0Kind == Arm64OperandKind.Register && instruction.Op1Kind == Arm64OperandKind.VectorRegisterElement)
-        {
-            //DUP Rd, Vn.Ts[i] => MOV Rd, Vn.Ts[i]
-            //i.e. just change DUP to MOV
-            instruction.Mnemonic = Arm64Mnemonic.MOV;
-            return;
-        }
         
         // UBFM to LSL alias conversion
         if (instruction.Mnemonic == Arm64Mnemonic.UBFM && instruction.Op2Kind == Arm64OperandKind.Immediate && instruction.Op3Kind == Arm64OperandKind.Immediate)
