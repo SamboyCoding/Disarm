@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Linq;
 
 namespace Disarm.InternalDisassembly;
 
@@ -69,14 +70,17 @@ internal static class Arm64CommonUtils
         return result;
     }
 
-    private static ulong RotateRight(ulong original, int numBits, int shift)
+    public static ulong RotateRight(ulong original, int numBits, int shift)
     {
         var m = shift % numBits;
 
         var right = original >> m;
         var left = original << (numBits - m);
-
-        return right | left;
+        
+        // 确保左移结果不会超出numBits的范围
+        var mask = numBits == 64 ? ulong.MaxValue : (1UL << numBits) - 1;
+        
+        return (right | left) & mask;
     }
 
     private static BitArray LongToBits(long value, int numBits)
@@ -155,31 +159,43 @@ internal static class Arm64CommonUtils
         //imms and immr are actually 6 bits not 8.
 
         var combined = (short)((nFlag ? 1 << 6 : 0) | (~imms & 0b11_1111));
-        var bits = LongToBits(combined, 12);
-        var len = HighestSetBit(bits);
+        var len = HighestSetBit(combined, 12);
 
         if (len < 1)
             throw new Arm64UndefinedInstructionException("DecodeBitMasks: highestBit < 1");
 
-        if ((1 << len) > desiredSize)
-            throw new Arm64UndefinedInstructionException("DecodeBitMasks: (1 << highestBit) > desiredSize");
+        // 计算element size
+        var esize = 1 << len;
+        
+        if (esize > desiredSize)
+        {
+            throw new Arm64UndefinedInstructionException("DecodeBitMasks: (1 << len) > desiredSize");
+        }
 
         var levels = (1 << len) - 1;
-
-        if (immediate && (imms & levels) == levels)
-            throw new Arm64UndefinedInstructionException("DecodeBitMasks: imms & levels == levels not allowed in immediate mode");
 
         var s = imms & levels;
         var r = immr & levels;
         var diff = s - r;
-        var esize = 1 << len;
 
         var d = diff & ((1 << (len - 1)) - 1); //UInt(diff<len-1:0>)
-        var wElem = (1 << (s + 1)) - 1;
-        var tElem = (1 << (d + 1)) - 1;
-
-        var wMask = Replicate(LongToBits((long)RotateRight((ulong)wElem, esize, r), esize), desiredSize);
-        var tMask = Replicate(LongToBits(tElem, esize), desiredSize);
+        
+        // 计算wElem和tElem
+        long wElem = (1L << (s + 1)) - 1;
+        long tElem = (1L << (d + 1)) - 1;
+        
+        // 创建在esize范围内的位模式，然后旋转
+        var maskedWElem = esize == 64 ? wElem : wElem & ((1L << esize) - 1);
+        
+        ulong rotatedWElem = RotateRight((ulong)maskedWElem, esize, (int)r);
+        
+        // 使用原始的esize位模式，而不是旋转后的64位值
+        BitArray rotatedBits = LongToBits(maskedWElem, esize); // 使用原始的maskedWElem
+        RotateRightInPlace(rotatedBits, (int)r); // 在位数组上直接进行旋转
+        
+        BitArray wMask = Replicate(rotatedBits, desiredSize);
+        
+        BitArray tMask = Replicate(LongToBits(tElem, esize), desiredSize);
 
         return (BitsToLong(wMask), BitsToLong(tMask));
     }
@@ -383,5 +399,28 @@ internal static class Arm64CommonUtils
         var result = (1 + frac * Math.Pow(2, -10)) * Math.Pow(2, exp - 15);
         return sign == 1 ? -result : result;
 #endif
+    }
+
+    private static void RotateRightInPlace(BitArray bits, int shiftAmount)
+    {
+        int length = bits.Length;
+        if (length == 0 || shiftAmount == 0) return;
+        
+        shiftAmount %= length;
+        if (shiftAmount == 0) return;
+        
+        // 创建临时数组存储原始值
+        bool[] temp = new bool[length];
+        for (int i = 0; i < length; i++)
+        {
+            temp[i] = bits[i];
+        }
+        
+        // 执行右旋转
+        for (int i = 0; i < length; i++)
+        {
+            int newIndex = (i + shiftAmount) % length;
+            bits[newIndex] = temp[i];
+        }
     }
 }

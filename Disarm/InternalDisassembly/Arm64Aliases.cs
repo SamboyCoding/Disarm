@@ -25,6 +25,24 @@ internal static class Arm64Aliases
             return;
         }
 
+        // ORR Xd, XZR, #imm => MOV Xd, #imm
+        if (instruction.Mnemonic == Arm64Mnemonic.ORR && instruction.Op1Reg is Arm64Register.X31 or Arm64Register.W31 && instruction.Op2Kind == Arm64OperandKind.Immediate)
+        {
+            instruction.Mnemonic = Arm64Mnemonic.MOV;
+            
+            // Move immediate to Op1
+            instruction.Op1Kind = Arm64OperandKind.Immediate;
+            instruction.Op1Imm = instruction.Op2Imm;
+            
+            // Clear Op2
+            instruction.Op2Kind = Arm64OperandKind.None;
+            instruction.Op2Imm = 0;
+            
+            instruction.MnemonicCategory = Arm64MnemonicCategory.Move;
+            
+            return;
+        }
+
         if (instruction.Mnemonic == Arm64Mnemonic.ORR && instruction.Op1Kind == Arm64OperandKind.Register && instruction.Op2Kind == Arm64OperandKind.Register && instruction.Op1Reg == instruction.Op2Reg)
         {
             //Change ORR R0, R1, R1 => MOV R0, R1
