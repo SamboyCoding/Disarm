@@ -906,7 +906,9 @@ internal static class Arm64LoadsStores
         //Shifted register: Mnemonic Wt, [Xn, Xm|Wm, LSL Amount]
 
         var shiftAmount = 0;
-        if (sFlag && isShiftedRegister)
+        // 寄存器偏移寻址的 S 位同样适用于 UXTW/SXTW 等扩展形式；
+        // 它表示扩展后再按访问宽度缩放，不能只在纯 LSL 形式下保留。
+        if (sFlag)
         {
             //Shift set, amount is size-dependent
             shiftAmount = size switch

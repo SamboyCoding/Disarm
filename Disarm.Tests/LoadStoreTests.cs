@@ -33,6 +33,23 @@ public class LoadStoreTests : BaseDisarmTest
     }
 
     [Fact]
+    public void LoadStoreRegFromRegOffsetPreservesExtendedRegisterScale()
+    {
+        // SXTW 与访问宽度缩放是同一条寻址语义，不能因为它不是 LSL 形式就丢掉 S 位表达的 #2。
+        var instruction = DisassembleAndCheckMnemonic(0xBC60D900U, Arm64Mnemonic.LDR);
+
+        Assert.Equal(Arm64Register.S0, instruction.Op0Reg);
+        Assert.Equal(Arm64OperandKind.Memory, instruction.Op1Kind);
+        Assert.Equal(Arm64Register.X8, instruction.MemBase);
+        Assert.Equal(Arm64Register.W0, instruction.MemAddendReg);
+        Assert.Equal(Arm64ExtendType.SXTW, instruction.MemExtendType);
+        Assert.Equal(Arm64ShiftType.NONE, instruction.MemShiftType);
+        Assert.Equal(2, instruction.MemExtendOrShiftAmount);
+
+        Assert.Equal("0x00000000 LDR S0, [X8, W0, SXTW #2]", instruction.ToString());
+    }
+
+    [Fact]
     public void LoadStoreRegFromRegOffsetOmitsNoOpLsl()
     {
         var instruction = DisassembleAndCheckMnemonic(0xBC686A6AU, Arm64Mnemonic.LDR);
