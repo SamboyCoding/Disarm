@@ -211,7 +211,7 @@ internal static class Arm64DataProcessingRegister
     {
         var is64Bit = instruction.TestBit(31); //sf flag
         var opc = (instruction >> 29) & 0b11;
-        var shift = (instruction >> 22) & 0b11;
+        var shift = (Arm64ShiftType) ((instruction >> 22) & 0b11);
         var negateFlag = instruction.TestBit(21); //N flag - defines if the result is negated
         var rm = (int) (instruction >> 16) & 0b1_1111;
         var imm6 = (instruction >> 10) & 0b11_1111;
@@ -246,11 +246,13 @@ internal static class Arm64DataProcessingRegister
             Op0Kind = Arm64OperandKind.Register,
             Op1Kind = Arm64OperandKind.Register,
             Op2Kind = Arm64OperandKind.Register,
+            // 逻辑指令沿用既有的显式 imm6 操作数契约，同时为非零移位补齐类型元数据。
             Op3Kind = Arm64OperandKind.Immediate,
             Op0Reg = regD,
             Op1Reg = regN,
             Op2Reg = regM,
             Op3Imm = imm6,
+            FinalOpShiftType = imm6 == 0 ? Arm64ShiftType.NONE : shift,
             MnemonicCategory = Arm64MnemonicCategory.Math
         };
     }

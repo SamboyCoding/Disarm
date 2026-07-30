@@ -49,6 +49,23 @@ public class DataProcessingTests : BaseDisarmTest
         => DisassembleAndCheckMnemonic(0x1AC80D2AU, Arm64Mnemonic.SDIV);
 
     [Fact]
+    public void LogicalShiftedRegisterPreservesShiftMetadata()
+    {
+        var shifted = DisassembleAndCheckMnemonic(0x0AA87D08U, Arm64Mnemonic.BIC);
+        Assert.Equal(Arm64Register.W8, shifted.Op0Reg);
+        Assert.Equal(Arm64Register.W8, shifted.Op1Reg);
+        Assert.Equal(Arm64Register.W8, shifted.Op2Reg);
+        Assert.Equal(Arm64OperandKind.Immediate, shifted.Op3Kind);
+        Assert.Equal(31, shifted.Op3Imm);
+        Assert.Equal(Arm64ShiftType.ASR, shifted.FinalOpShiftType);
+
+        var unshifted = DisassembleAndCheckMnemonic(0x0A280108U, Arm64Mnemonic.BIC);
+        Assert.Equal(Arm64OperandKind.Immediate, unshifted.Op3Kind);
+        Assert.Equal(0, unshifted.Op3Imm);
+        Assert.Equal(Arm64ShiftType.NONE, unshifted.FinalOpShiftType);
+    }
+
+    [Fact]
     public void ConditionalCompareImmediate()
     {
         var insn = DisassembleAndCheckMnemonic(0x7A49B102U, Arm64Mnemonic.CCMP);
