@@ -45,7 +45,9 @@ internal static class Arm64DataProcessingImmediate
         {
             Mnemonic = mnemonic,
             Op0Kind = Arm64OperandKind.Register,
-            Op1Kind = Arm64OperandKind.Immediate,
+            // ADR 的立即数是相对当前指令地址的有符号字节偏移，必须保留为
+            // PC-relative operand；ADRP 是页相对语义，不能复用普通 ADR 的目标计算。
+            Op1Kind = hasP ? Arm64OperandKind.Immediate : Arm64OperandKind.ImmediatePcRelative,
             Op0Reg = regD,
             Op1Imm = imm21,
             MnemonicCategory = Arm64MnemonicCategory.LoadAddress,

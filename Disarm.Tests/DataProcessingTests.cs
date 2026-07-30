@@ -45,6 +45,36 @@ public class DataProcessingTests : BaseDisarmTest
     }
 
     [Fact]
+    public void AdrExposesPositivePcRelativeTarget()
+    {
+        var instruction = Disassembler
+            .Disassemble(new byte[] { 0x8A, 0x00, 0x00, 0x10 }, 0x1C73FA0)
+            .Single();
+
+        Assert.Equal(Arm64Mnemonic.ADR, instruction.Mnemonic);
+        Assert.Equal(Arm64Register.X10, instruction.Op0Reg);
+        Assert.Equal(Arm64OperandKind.ImmediatePcRelative, instruction.Op1Kind);
+        Assert.Equal(0x10, instruction.Op1Imm);
+        Assert.Equal(0x1C73FB0UL, instruction.Op1PcRelImm);
+        Assert.Equal("0x01C73FA0 ADR X10, 0x1C73FB0", instruction.ToString());
+    }
+
+    [Fact]
+    public void AdrExposesNegativePcRelativeTarget()
+    {
+        var instruction = Disassembler
+            .Disassemble(new byte[] { 0xA0, 0xFE, 0xFF, 0x10 }, 0x1C67FA4)
+            .Single();
+
+        Assert.Equal(Arm64Mnemonic.ADR, instruction.Mnemonic);
+        Assert.Equal(Arm64Register.X0, instruction.Op0Reg);
+        Assert.Equal(Arm64OperandKind.ImmediatePcRelative, instruction.Op1Kind);
+        Assert.Equal(-0x2C, instruction.Op1Imm);
+        Assert.Equal(0x1C67F78UL, instruction.Op1PcRelImm);
+        Assert.Equal("0x01C67FA4 ADR X0, 0x1C67F78", instruction.ToString());
+    }
+
+    [Fact]
     public void DataProcessing2Source() 
         => DisassembleAndCheckMnemonic(0x1AC80D2AU, Arm64Mnemonic.SDIV);
 
