@@ -30,8 +30,11 @@ internal static class Arm64LoadsStores
             //Load/store exclusive pair, or undefined
             if (op1 == 0 && op2 == 0 && op3.TestBit(5))
                 return LoadStoreExclusivePair(instruction);
+
+            if (op1 == 1)
+                throw new Arm64UndefinedInstructionException($"Load/store: Undefined instruction - op0={op0} and op1={op1}");
             
-            throw new Arm64UndefinedInstructionException($"Load/store: Undefined instruction - op0={op0}, op1={op1}, op2={op2}, op3={op3}");
+            //Drop to below
         }
 
         //The last 4 categories look only at the last 2 bits of op0, so we can switch now
@@ -203,6 +206,10 @@ internal static class Arm64LoadsStores
         
         if(op2 == 0 && op3.TestBit(6))
             throw new Arm64UndefinedInstructionException("Load/store (exclusive register|ordered)|compare/swap: op2=0, op3 hi bit set");
+        
+        // op0 xx00 | op1 0 | op2 01 | op3 top bit clear | Load/store ordered
+        if ((op0 & 0b11) == 0 && !op1 && op2 == 0b01 && (op3 & 0b10_0000) == 0)
+            return LoadStoreOrdered(instruction);
 
         // op0 xx00 | op1 0 | op2 0x | op3 empty | op4 empty | Load/store exclusive
         if ((op0 & 0b11) == 0 && !op1 && !op2.TestBit(1)) 
@@ -214,7 +221,7 @@ internal static class Arm64LoadsStores
         if (op3.TestBit(6))
             return CompareAndSwap(instruction);
 
-        return LoadStoreOrdered(instruction);
+        throw new Arm64UndefinedInstructionException($"Load/store (exclusive register|ordered)|compare/swap: op0 {op0}, op1 {op1}, op2 {op2}, op3 {op3}, op4 {op4}");
     }
     
     private static Arm64Instruction LoadStoreExclusive(uint instruction)
@@ -237,10 +244,57 @@ internal static class Arm64LoadsStores
     
     private static Arm64Instruction LoadStoreOrdered(uint instruction)
     {
+        var size = (instruction >> 30) & 0b11; // 00 = B, 01 = H, 10 = 32-bit variant, 11 = 64-bit variant
+        var L = instruction.TestBit(22); //1 = Load, 0 = Store
+        var o0 = instruction.TestBit(15); //0 = FEAT_LOR instruction group
+
+        var mnemonic = size switch
+        {
+            0b00 when L && !o0 => Arm64Mnemonic.LDLARB,
+            0b00 when L => Arm64Mnemonic.LDARB,
+            0b00 when !L && !o0 => Arm64Mnemonic.STLLRB,
+            0b00 when !L => Arm64Mnemonic.STLRB,
+
+            0b01 when L && !o0 => Arm64Mnemonic.LDLARH,
+            0b01 when L => Arm64Mnemonic.LDARH,
+            0b01 when !L && !o0 => Arm64Mnemonic.STLLRH,
+            0b01 when !L => Arm64Mnemonic.STLRH,
+
+            0b10 when L && !o0 => Arm64Mnemonic.LDLAR,
+            0b10 when L => Arm64Mnemonic.LDAR,
+            0b10 when !L && !o0 => Arm64Mnemonic.STLLR,
+            0b10 when !L => Arm64Mnemonic.STLR,
+
+            0b11 when L && !o0 => Arm64Mnemonic.LDLAR,
+            0b11 when L => Arm64Mnemonic.LDAR,
+            0b11 when !L && !o0 => Arm64Mnemonic.STLLR,
+            0b11 when !L => Arm64Mnemonic.STLR,
+
+            _ => throw new Arm64UndefinedInstructionException("LoadStoreOrdered: Impossible combination")
+        };
+
+        var Rs = instruction >> 16 & 0b1_1111; //doesn't appear to actually be used
+        var Rt2  = instruction >> 10 & 0b1_1111; //doesn't appear to actually be used
+        var Rn = instruction >> 5 & 0b1_1111;
+        var Rt = instruction & 0b1_1111;
+
+        var baseTReg = size switch
+        {
+            0b00 or 0b01 or 0b10 => Arm64Register.W0,
+            0b11 => Arm64Register.X0,
+            _ => throw new Arm64UndefinedInstructionException("LoadStoreOrdered: Impossible combination")
+        };
+        
+        var baseNReg = Arm64Register.X0;
+        
         return new()
         {
-            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
-            MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister, 
+            Mnemonic = mnemonic,
+            MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister,
+            Op0Kind = Arm64OperandKind.Register,
+            Op1Kind = Arm64OperandKind.Register,
+            Op0Reg = baseTReg + (int)Rt,
+            Op1Reg = baseNReg + (int)Rn,
         };
     }
 
