@@ -16,4 +16,14 @@ public class SystemTests : BaseDisarmTest
         DisassembleAndCheckMnemonic(0xD5300000, Arm64Mnemonic.MRS);
         DisassembleAndCheckMnemonic(0xD5100000, Arm64Mnemonic.MSR);
     }
+
+    [Fact]
+    public void TestUndefined()
+    {
+        DisassembleAndCheckMnemonic(0x00000000, Arm64Mnemonic.UDF);
+
+        var insn = DisassembleAndCheckMnemonic(0x0000FFFF, Arm64Mnemonic.UDF);
+        Assert.Equal(0xFFFF, insn.Op0Imm);
+        Assert.Equal("0x00000000 UDF 0xFFFF", insn.ToString());
+    }
 }

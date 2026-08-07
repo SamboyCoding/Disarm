@@ -216,7 +216,16 @@ public static class Disassembler
         var type = (instruction >> 25) & 0b1111;
 
         if (isReserved && type == 0)
+        {
+            // Technically, UDF is a real instruction
+            var op0 = (instruction >> 29) & 0b11;
+            var op1 = (instruction >> 16) & 0b1_1111_1111;
+
+            if (op0 == 0 && op1 == 0)
+                return new Arm64Instruction() { Mnemonic = Arm64Mnemonic.UDF, Op0Kind = Arm64OperandKind.Immediate, Op0Imm = (instruction & 0xFFFF)};
+            
             throw new Arm64UndefinedInstructionException($"Encountered reserved group of instructions");
+        }
 
         if (type is 0b0001 or 0b0011)
             throw new Arm64UndefinedInstructionException($"Unallocated instruction type (bits 25-28 are 0b0001 or 0b0011)");
@@ -224,7 +233,7 @@ public static class Disassembler
         var decoded = type switch
         {
             //SME (Scalable Matrix Extension, Arm V9 only)
-            0 => throw new($"SME instruction encountered at offset {offset}: 0x{instruction:X} - they are not implemented because Arm V9 is not supported"),
+            0 => throw new NotImplementedException($"SME instruction encountered at offset {offset}: 0x{instruction:X} - they are not implemented because Arm V9 is not supported"),
 
             0b0010 => Arm64Sve.Disassemble(instruction), //SVE (Scalable Vector Extension, ARM v8.2)
 

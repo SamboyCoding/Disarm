@@ -4,6 +4,7 @@ public enum Arm64Mnemonic
 {
     INVALID,
     UNIMPLEMENTED,
+    UDF,
     INS,
     DUP,
     CMGT,
