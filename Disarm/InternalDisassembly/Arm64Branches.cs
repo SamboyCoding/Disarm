@@ -151,7 +151,7 @@ internal static class Arm64Branches
                 //By default, ret returns to the caller, the address of which is in X30, however X30 can be overriden by providing a register in rn.
                 //As X30 is the default, we don't need to disassemble to it explicitly.
                 if (rn == 30)
-                    return new() { Mnemonic = Arm64Mnemonic.RET };
+                    return new() { Mnemonic = Arm64Mnemonic.RET, MnemonicCategory = Arm64MnemonicCategory.Return };
 
                 return new()
                 {
