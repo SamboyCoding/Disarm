@@ -45,7 +45,8 @@ internal static class Arm64DataProcessingImmediate
         {
             Mnemonic = mnemonic,
             Op0Kind = Arm64OperandKind.Register,
-            Op1Kind = Arm64OperandKind.Immediate,
+            //adrp is page-relative so the raw offset stays a plain immediate, adr is a straight pc offset
+            Op1Kind = hasP ? Arm64OperandKind.Immediate : Arm64OperandKind.ImmediatePcRelative,
             Op0Reg = regD,
             Op1Imm = imm21,
             MnemonicCategory = Arm64MnemonicCategory.LoadAddress,
@@ -207,15 +208,15 @@ internal static class Arm64DataProcessingImmediate
         var regD = baseReg + rd;
         var shift = (int) hw * 16;
 
-        imm16 <<= shift;
-        
+        var immediate = (long)((ulong)imm16 << shift); //shift can be up to 48, too big for the uint field
+
         return new()
         {
             Mnemonic = mnemonic,
             Op0Kind = Arm64OperandKind.Register,
             Op1Kind = Arm64OperandKind.Immediate,
             Op0Reg = regD,
-            Op1Imm = imm16,
+            Op1Imm = immediate,
             MnemonicCategory = Arm64MnemonicCategory.Move,
         };
     }

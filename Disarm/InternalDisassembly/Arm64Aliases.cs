@@ -4,7 +4,7 @@ internal static class Arm64Aliases
 {
     public static void CheckForAlias(ref Arm64Instruction instruction)
     {
-        if (instruction.Mnemonic == Arm64Mnemonic.ORR && instruction.Op2Imm == 0 && instruction.Op1Reg is Arm64Register.X31 or Arm64Register.W31)
+        if (instruction.Mnemonic == Arm64Mnemonic.ORR && instruction.Op2Kind == Arm64OperandKind.Register && instruction.Op3Imm == 0 && instruction.Op1Reg is Arm64Register.X31 or Arm64Register.W31)
         {
             //Change ORR R1, X31, R2, 0 to MOV R1, R2
             instruction.Mnemonic = Arm64Mnemonic.MOV;
@@ -25,7 +25,46 @@ internal static class Arm64Aliases
             return;
         }
 
-        if (instruction.Mnemonic == Arm64Mnemonic.ORR && instruction.Op1Kind == Arm64OperandKind.Register && instruction.Op2Kind == Arm64OperandKind.Register && instruction.Op1Reg == instruction.Op2Reg)
+        if (instruction.Mnemonic == Arm64Mnemonic.ORR && instruction.Op2Kind == Arm64OperandKind.Immediate && instruction.Op1Reg is Arm64Register.X31 or Arm64Register.W31)
+        {
+            var is64Bit = instruction.Op0Reg is >= Arm64Register.X0 and <= Arm64Register.X31;
+            var value = (ulong)instruction.Op2Imm;
+            if (!is64Bit)
+                value &= uint.MaxValue;
+
+            //ORR Rd, ZR, #imm => MOV Rd, #imm, but only for immediates a movz/movn couldn't encode (canonical form keeps orr otherwise)
+            if (!IsMovWideEncodable(value, is64Bit))
+            {
+                instruction.Mnemonic = Arm64Mnemonic.MOV;
+
+                instruction.Op1Kind = Arm64OperandKind.Immediate;
+                instruction.Op1Reg = Arm64Register.INVALID;
+                instruction.Op1Imm = unchecked((long)value);
+
+                instruction.Op2Kind = Arm64OperandKind.None;
+                instruction.Op2Imm = 0;
+
+                instruction.MnemonicCategory = Arm64MnemonicCategory.Move;
+
+                return;
+            }
+        }
+
+        if (instruction.Mnemonic is Arm64Mnemonic.MOVZ or Arm64Mnemonic.MOVN && instruction.Op1Kind == Arm64OperandKind.Immediate)
+        {
+            //MOVZ/MOVN Rd, #imm16, LSL #s => MOV Rd, #resolved
+            if (instruction.Mnemonic == Arm64Mnemonic.MOVN)
+            {
+                var mask = instruction.Op0Reg is >= Arm64Register.X0 and <= Arm64Register.X31 ? ulong.MaxValue : uint.MaxValue;
+                instruction.Op1Imm = unchecked((long)(~(ulong)instruction.Op1Imm & mask));
+            }
+
+            instruction.Mnemonic = Arm64Mnemonic.MOV;
+
+            return;
+        }
+
+        if (instruction.Mnemonic == Arm64Mnemonic.ORR && instruction.Op1Kind == Arm64OperandKind.Register && instruction.Op2Kind == Arm64OperandKind.Register && instruction.Op1Reg == instruction.Op2Reg && instruction.Op3Imm == 0)
         {
             //Change ORR R0, R1, R1 => MOV R0, R1
             instruction.Mnemonic = Arm64Mnemonic.MOV;
@@ -61,17 +100,20 @@ internal static class Arm64Aliases
             return;
         }
 
-        if (instruction.Mnemonic == Arm64Mnemonic.MADD && instruction.Op3Reg is Arm64Register.X31 or Arm64Register.W31)
+        if (instruction.Mnemonic is Arm64Mnemonic.MADD or Arm64Mnemonic.MSUB or Arm64Mnemonic.SMADDL or Arm64Mnemonic.UMADDL or Arm64Mnemonic.SMSUBL or Arm64Mnemonic.UMSUBL && instruction.Op3Reg is Arm64Register.X31 or Arm64Register.W31)
         {
-            //MADD Rd, Rn, Rm, ZR => MUL Rd, Rn, Rm
-            //because MADD is (Rd = Rn * Rm + Ra) so when Ra = ZR => Rd = Rn * Rm
-            
-            //Simply clear the last operand
-            instruction.Mnemonic = Arm64Mnemonic.MUL;
+            //multiply-accumulates with a zr accumulator are plain multiplies (or negated ones)
+            instruction.Mnemonic = instruction.Mnemonic switch
+            {
+                Arm64Mnemonic.MADD => Arm64Mnemonic.MUL,
+                Arm64Mnemonic.MSUB => Arm64Mnemonic.MNEG,
+                Arm64Mnemonic.SMADDL => Arm64Mnemonic.SMULL,
+                Arm64Mnemonic.UMADDL => Arm64Mnemonic.UMULL,
+                Arm64Mnemonic.SMSUBL => Arm64Mnemonic.SMNEGL,
+                _ => Arm64Mnemonic.UMNEGL,
+            };
             instruction.Op3Kind = Arm64OperandKind.None;
             instruction.Op3Reg = Arm64Register.INVALID;
-            
-            //Category doesn't change (math => math)
 
             return;
         }
@@ -98,7 +140,32 @@ internal static class Arm64Aliases
                 instruction.Mnemonic = Arm64Mnemonic.CINC;
                 return;
             }
-            
+
+        }
+
+        if (instruction.Mnemonic == Arm64Mnemonic.CSNEG && instruction.FinalOpConditionCode is not Arm64ConditionCode.AL and not Arm64ConditionCode.NV
+            && instruction.Op1Kind == Arm64OperandKind.Register && instruction.Op2Kind == Arm64OperandKind.Register
+            && !instruction.Op1Reg.IsSp() && instruction.Op1Reg == instruction.Op2Reg)
+        {
+            //CSNEG Rd, Rn, Rn, COND => CNEG Rd, Rn, !COND
+            instruction.FinalOpConditionCode = instruction.FinalOpConditionCode.Invert();
+            instruction.Op2Kind = Arm64OperandKind.None;
+            instruction.Op2Reg = Arm64Register.INVALID;
+            instruction.Mnemonic = Arm64Mnemonic.CNEG;
+            return;
+        }
+
+        if (instruction.Mnemonic is Arm64Mnemonic.LSLV or Arm64Mnemonic.LSRV or Arm64Mnemonic.ASRV or Arm64Mnemonic.RORV)
+        {
+            //the variable shifts are always displayed by their plain shift names
+            instruction.Mnemonic = instruction.Mnemonic switch
+            {
+                Arm64Mnemonic.LSLV => Arm64Mnemonic.LSL,
+                Arm64Mnemonic.LSRV => Arm64Mnemonic.LSR,
+                Arm64Mnemonic.ASRV => Arm64Mnemonic.ASR,
+                _ => Arm64Mnemonic.ROR,
+            };
+            return;
         }
 
         if (instruction.Mnemonic is Arm64Mnemonic.SBFM or Arm64Mnemonic.UBFM && instruction.Op2Kind == Arm64OperandKind.Immediate && instruction.Op3Kind == Arm64OperandKind.Immediate)
@@ -166,22 +233,65 @@ internal static class Arm64Aliases
             return;
         }
 
-        if (instruction.Mnemonic == Arm64Mnemonic.INS && instruction.Op0Kind == Arm64OperandKind.VectorRegisterElement && instruction.Op1Kind == Arm64OperandKind.VectorRegisterElement)
+        if (instruction.Mnemonic == Arm64Mnemonic.BFM && instruction.Op2Kind == Arm64OperandKind.Immediate && instruction.Op3Kind == Arm64OperandKind.Immediate)
         {
-            //INS Vd.Ts[i1], Vn.Ts[i2] => MOV Vd.Ts[i1], Vn.Ts[i2]
+            var immr = instruction.Op2Imm;
+            var imms = instruction.Op3Imm;
+            var regSize = instruction.Op0Reg is >= Arm64Register.X0 and <= Arm64Register.X31 ? 64 : 32;
+
+            if (imms >= immr)
+            {
+                //BFM Rd, Rn, #immr, #imms => BFXIL Rd, Rn, #immr, #(imms-immr+1)
+                instruction.Mnemonic = Arm64Mnemonic.BFXIL;
+                instruction.Op3Imm = imms - immr + 1;
+            }
+            else
+            {
+                //BFM Rd, Rn, #immr, #imms => BFI Rd, Rn, #(regsize-immr), #(imms+1)
+                instruction.Mnemonic = Arm64Mnemonic.BFI;
+                instruction.Op2Imm = regSize - immr;
+                instruction.Op3Imm = imms + 1;
+            }
+
+            return;
+        }
+
+        if (instruction.Mnemonic == Arm64Mnemonic.INS && instruction.Op0Kind == Arm64OperandKind.VectorRegisterElement && instruction.Op1Kind is Arm64OperandKind.VectorRegisterElement or Arm64OperandKind.Register)
+        {
+            //INS Vd.Ts[i1], (Vn.Ts[i2]|Rn) => MOV Vd.Ts[i1], (Vn.Ts[i2]|Rn)
             //i.e. just change INS to MOV
             instruction.Mnemonic = Arm64Mnemonic.MOV;
-            
+
             //Category remains SimdRegisterToRegister
             return;
         }
 
-        if (instruction.Mnemonic == Arm64Mnemonic.DUP && instruction.Op0Kind == Arm64OperandKind.Register && instruction.Op1Kind == Arm64OperandKind.VectorRegisterElement)
+        if (instruction.Mnemonic == Arm64Mnemonic.UMOV && instruction.Op1Kind == Arm64OperandKind.VectorRegisterElement && instruction.Op1VectorElement.Width is Arm64VectorElementWidth.S or Arm64VectorElementWidth.D)
         {
-            //DUP Rd, Vn.Ts[i] => MOV Rd, Vn.Ts[i]
-            //i.e. just change DUP to MOV
+            //the word and doubleword umov forms are plain movs, the narrow ones keep their name to show the zero extension
             instruction.Mnemonic = Arm64Mnemonic.MOV;
             return;
         }
+
+        if (instruction.Mnemonic == Arm64Mnemonic.DUP && instruction.Op0Kind == Arm64OperandKind.Register && instruction.Op0Arrangement == Arm64ArrangementSpecifier.None && instruction.Op1Kind == Arm64OperandKind.VectorRegisterElement)
+        {
+            //DUP Rd, Vn.Ts[i] => MOV Rd, Vn.Ts[i], but only the scalar form (the vector broadcast stays dup)
+            instruction.Mnemonic = Arm64Mnemonic.MOV;
+            return;
+        }
+    }
+
+    //true if a single movz or movn could produce this value, i.e. it or its inverse fits in one 16-bit aligned halfword
+    private static bool IsMovWideEncodable(ulong value, bool is64Bit)
+    {
+        var inverse = is64Bit ? ~value : ~value & uint.MaxValue;
+
+        for (var shiftBy = 0; shiftBy < (is64Bit ? 64 : 32); shiftBy += 16)
+        {
+            if ((value & ~(0xFFFFUL << shiftBy)) == 0 || (inverse & ~(0xFFFFUL << shiftBy)) == 0)
+                return true;
+        }
+
+        return false;
     }
 }

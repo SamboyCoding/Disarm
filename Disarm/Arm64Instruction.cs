@@ -147,15 +147,15 @@ public struct Arm64Instruction
         sb.Append(' ');
 
         //Ew yes I'm using goto.
-        if (!AppendOperand(sb, Op0Kind, Op0Reg, Op0VectorElement, Op0Arrangement, Op0ShiftType, Op0Imm, Op0FpImm))
+        if (!AppendOperand(sb, 0, Op0Kind, Op0Reg, Op0VectorElement, Op0Arrangement, Op0ShiftType, Op0Imm, Op0FpImm))
             goto doneops;
-        if (!AppendOperand(sb, Op1Kind, Op1Reg, Op1VectorElement, Op1Arrangement, Op1ShiftType, Op1Imm, Op1FpImm, true))
+        if (!AppendOperand(sb, 1, Op1Kind, Op1Reg, Op1VectorElement, Op1Arrangement, Op1ShiftType, Op1Imm, Op1FpImm, true))
             goto doneops;
-        if (!AppendOperand(sb, Op2Kind, Op2Reg, Op2VectorElement, Op2Arrangement, Op2ShiftType, Op2Imm, Op2FpImm, true))
+        if (!AppendOperand(sb, 2, Op2Kind, Op2Reg, Op2VectorElement, Op2Arrangement, Op2ShiftType, Op2Imm, Op2FpImm, true))
             goto doneops;
-        if (!AppendOperand(sb, Op3Kind, Op3Reg, Op3VectorElement, Op3Arrangement, Op3ShiftType, Op3Imm, Op3FpImm, true))
+        if (!AppendOperand(sb, 3, Op3Kind, Op3Reg, Op3VectorElement, Op3Arrangement, Op3ShiftType, Op3Imm, Op3FpImm, true))
             goto doneops;
-        if (!AppendOperand(sb, Op4Kind, Op4Reg, Op4VectorElement, Op4Arrangement, Op4ShiftType, Op4Imm, Op4FpImm, true))
+        if (!AppendOperand(sb, 4, Op4Kind, Op4Reg, Op4VectorElement, Op4Arrangement, Op4ShiftType, Op4Imm, Op4FpImm, true))
             goto doneops;
         
         doneops:
@@ -169,7 +169,7 @@ public struct Arm64Instruction
         return sb.ToString();
     }
 
-    private bool AppendOperand(StringBuilder sb, Arm64OperandKind kind, Arm64Register reg, Arm64VectorElement vectorElement, Arm64ArrangementSpecifier regArrangement, Arm64ShiftType shiftType, long imm, double fpImm, bool comma = false)
+    private bool AppendOperand(StringBuilder sb, int operandIndex, Arm64OperandKind kind, Arm64Register reg, Arm64VectorElement vectorElement, Arm64ArrangementSpecifier regArrangement, Arm64ShiftType shiftType, long imm, double fpImm, bool comma = false)
     {
         if (kind == Arm64OperandKind.None)
             return false;
@@ -191,9 +191,16 @@ public struct Arm64Instruction
         }
         else if (kind == Arm64OperandKind.Immediate)
         {
-            if (shiftType != Arm64ShiftType.NONE)
-                sb.Append(shiftType).Append(' ');
-            sb.Append("0x").Append(imm.ToString("X"));
+            if (IsSystemRegOperand(operandIndex) && Arm64SystemRegisterNameResolver.Resolve(imm) is { } sysRegName)
+            {
+                sb.Append(sysRegName);
+            }
+            else
+            {
+                if (shiftType != Arm64ShiftType.NONE)
+                    sb.Append(shiftType).Append(' ');
+                sb.Append("0x").Append(imm.ToString("X"));
+            }
         } else if (kind == Arm64OperandKind.FloatingPointImmediate)
         {
             sb.Append(fpImm.ToString(CultureInfo.InvariantCulture));
@@ -205,6 +212,10 @@ public struct Arm64Instruction
 
         return true;
     }
+
+    private bool IsSystemRegOperand(int operandIndex) =>
+        Mnemonic == Arm64Mnemonic.MRS && operandIndex == 1 ||
+        Mnemonic == Arm64Mnemonic.MSR && operandIndex == 0;
 
     private void AppendMemory(StringBuilder sb)
     {

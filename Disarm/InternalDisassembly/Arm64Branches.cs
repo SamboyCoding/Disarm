@@ -54,10 +54,10 @@ internal static class Arm64Branches
 
         var bitToTest = b40;
         if (b5)
-            bitToTest &= 1 << 5;
+            bitToTest |= 1 << 5;
 
         var jumpTo = Arm64CommonUtils.CorrectSignBit(imm14, 14) * 4;
-        var regT = Arm64Register.X0 + rt;
+        var regT = (b5 ? Arm64Register.X0 : Arm64Register.W0) + rt;
 
         return new()
         {

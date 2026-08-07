@@ -787,6 +787,7 @@ internal static class Arm64LoadsStores
                 
                 mnemonic = opc == 0b10 ? Arm64Mnemonic.STR : Arm64Mnemonic.LDR;
                 baseReg = Arm64Register.V0; //128-bit variant
+                immediate <<= 4; //size is 00 for q regs, the actual scale is 16 bytes
             }
             else
             {

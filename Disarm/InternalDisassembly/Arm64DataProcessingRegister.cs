@@ -251,6 +251,7 @@ internal static class Arm64DataProcessingRegister
             Op1Reg = regN,
             Op2Reg = regM,
             Op3Imm = imm6,
+            Op3ShiftType = imm6 == 0 ? Arm64ShiftType.NONE : (Arm64ShiftType) shift,
             MnemonicCategory = Arm64MnemonicCategory.Math
         };
     }

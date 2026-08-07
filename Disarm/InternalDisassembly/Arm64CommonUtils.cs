@@ -76,7 +76,8 @@ internal static class Arm64CommonUtils
         var right = original >> m;
         var left = original << (numBits - m);
 
-        return right | left;
+        var mask = numBits == 64 ? ulong.MaxValue : (1UL << numBits) - 1;
+        return (right | left) & mask;
     }
 
     private static BitArray LongToBits(long value, int numBits)

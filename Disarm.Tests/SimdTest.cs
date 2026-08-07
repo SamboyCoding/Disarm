@@ -490,5 +490,92 @@ public class SimdTest : BaseDisarmTest
     {
         DisassembleAndCheckMnemonic(0x7E808400, Arm64Mnemonic.SQRDMLAH);
         DisassembleAndCheckMnemonic(0x7EC08C00, Arm64Mnemonic.SQRDMLSH);
-    } 
+    }
+
+    [Fact]
+    public void TestAdvancedSimdPermute()
+    {
+        Assert.Equal("0x00000000 UZP1 V0.16B, V1.16B, V2.16B", DisassembleAndCheckMnemonic(0x4E021820, Arm64Mnemonic.UZP1).ToString());
+        Assert.Equal("0x00000000 TRN1 V3.8H, V4.8H, V5.8H", DisassembleAndCheckMnemonic(0x4E452883, Arm64Mnemonic.TRN1).ToString());
+        Assert.Equal("0x00000000 ZIP1 V6.4S, V7.4S, V8.4S", DisassembleAndCheckMnemonic(0x4E8838E6, Arm64Mnemonic.ZIP1).ToString());
+        Assert.Equal("0x00000000 UZP2 V9.2S, V10.2S, V11.2S", DisassembleAndCheckMnemonic(0x0E8B5949, Arm64Mnemonic.UZP2).ToString());
+        Assert.Equal("0x00000000 TRN2 V12.2D, V13.2D, V14.2D", DisassembleAndCheckMnemonic(0x4ECE69AC, Arm64Mnemonic.TRN2).ToString());
+        Assert.Equal("0x00000000 ZIP2 V15.8B, V16.8B, V17.8B", DisassembleAndCheckMnemonic(0x0E117A0F, Arm64Mnemonic.ZIP2).ToString());
+    }
+
+    [Fact]
+    public void TestAdvancedSimdExtract()
+    {
+        Assert.Equal("0x00000000 EXT V0.16B, V1.16B, V2.16B, 0xC", DisassembleAndCheckMnemonic(0x6E026020, Arm64Mnemonic.EXT).ToString());
+        Assert.Equal("0x00000000 EXT V3.8B, V4.8B, V5.8B, 0x3", DisassembleAndCheckMnemonic(0x2E051883, Arm64Mnemonic.EXT).ToString());
+    }
+
+    [Fact]
+    public void TestAdvancedSimdCopyForms()
+    {
+        Assert.Equal("0x00000000 DUP V0.16B, V1.B[5]", DisassembleAndCheckMnemonic(0x4E0B0420, Arm64Mnemonic.DUP).ToString());
+        Assert.Equal("0x00000000 DUP V2.4S, W3", DisassembleAndCheckMnemonic(0x4E040C62, Arm64Mnemonic.DUP).ToString());
+        Assert.Equal("0x00000000 DUP V4.2D, X5", DisassembleAndCheckMnemonic(0x4E080CA4, Arm64Mnemonic.DUP).ToString());
+
+        Assert.Equal("0x00000000 SMOV W4, V5.B[2]", DisassembleAndCheckMnemonic(0x0E052CA4, Arm64Mnemonic.SMOV).ToString());
+        Assert.Equal("0x00000000 SMOV X6, V7.H[3]", DisassembleAndCheckMnemonic(0x4E0E2CE6, Arm64Mnemonic.SMOV).ToString());
+        Assert.Equal("0x00000000 SMOV X0, V1.S[1]", DisassembleAndCheckMnemonic(0x4E0C2C20, Arm64Mnemonic.SMOV).ToString());
+
+        //narrow umov keeps its name, word and doubleword forms are movs
+        Assert.Equal("0x00000000 UMOV W8, V9.B[4]", DisassembleAndCheckMnemonic(0x0E093D28, Arm64Mnemonic.UMOV).ToString());
+        Assert.Equal("0x00000000 MOV W0, V1.S[2]", DisassembleAndCheckMnemonic(0x0E143C20, Arm64Mnemonic.MOV).ToString());
+        Assert.Equal("0x00000000 MOV X10, V11.D[1]", DisassembleAndCheckMnemonic(0x4E183D6A, Arm64Mnemonic.MOV).ToString());
+
+        //ins (general) is displayed as mov
+        Assert.Equal("0x00000000 MOV V12.S[1], W13", DisassembleAndCheckMnemonic(0x4E0C1DAC, Arm64Mnemonic.MOV).ToString());
+        Assert.Equal("0x00000000 MOV V14.D[0], X15", DisassembleAndCheckMnemonic(0x4E081DEE, Arm64Mnemonic.MOV).ToString());
+    }
+
+    [Fact]
+    public void TestAdvancedSimdThreeSameUnsigned()
+    {
+        Assert.Equal("0x00000000 EOR V0.16B, V1.16B, V2.16B", DisassembleAndCheckMnemonic(0x6E221C20, Arm64Mnemonic.EOR).ToString());
+        Assert.Equal("0x00000000 BSL V3.8B, V4.8B, V5.8B", DisassembleAndCheckMnemonic(0x2E651C83, Arm64Mnemonic.BSL).ToString());
+        Assert.Equal("0x00000000 BIT V6.16B, V7.16B, V8.16B", DisassembleAndCheckMnemonic(0x6EA81CE6, Arm64Mnemonic.BIT).ToString());
+        Assert.Equal("0x00000000 BIF V9.16B, V10.16B, V11.16B", DisassembleAndCheckMnemonic(0x6EEB1D49, Arm64Mnemonic.BIF).ToString());
+        Assert.Equal("0x00000000 UQADD V0.8H, V1.8H, V2.8H", DisassembleAndCheckMnemonic(0x6E620C20, Arm64Mnemonic.UQADD).ToString());
+        Assert.Equal("0x00000000 CMHI V3.4S, V4.4S, V5.4S", DisassembleAndCheckMnemonic(0x6EA53483, Arm64Mnemonic.CMHI).ToString());
+        Assert.Equal("0x00000000 CMEQ V6.16B, V7.16B, V8.16B", DisassembleAndCheckMnemonic(0x6E288CE6, Arm64Mnemonic.CMEQ).ToString());
+        Assert.Equal("0x00000000 SUB V9.2D, V10.2D, V11.2D", DisassembleAndCheckMnemonic(0x6EEB8549, Arm64Mnemonic.SUB).ToString());
+        Assert.Equal("0x00000000 FDIV V12.4S, V13.4S, V14.4S", DisassembleAndCheckMnemonic(0x6E2EFDAC, Arm64Mnemonic.FDIV).ToString());
+        Assert.Equal("0x00000000 FADDP V15.2S, V16.2S, V17.2S", DisassembleAndCheckMnemonic(0x2E31D60F, Arm64Mnemonic.FADDP).ToString());
+        Assert.Equal("0x00000000 FABD V18.2D, V19.2D, V20.2D", DisassembleAndCheckMnemonic(0x6EF4D672, Arm64Mnemonic.FABD).ToString());
+        Assert.Equal("0x00000000 FACGE V21.4S, V22.4S, V23.4S", DisassembleAndCheckMnemonic(0x6E37EED5, Arm64Mnemonic.FACGE).ToString());
+        Assert.Equal("0x00000000 FACGT V24.2D, V25.2D, V26.2D", DisassembleAndCheckMnemonic(0x6EFAEF38, Arm64Mnemonic.FACGT).ToString());
+        Assert.Equal("0x00000000 FMAXNMP V27.4S, V28.4S, V29.4S", DisassembleAndCheckMnemonic(0x6E3DC79B, Arm64Mnemonic.FMAXNMP).ToString());
+        Assert.Equal("0x00000000 UABA V0.8B, V1.8B, V2.8B", DisassembleAndCheckMnemonic(0x2E227C20, Arm64Mnemonic.UABA).ToString());
+        Assert.Equal("0x00000000 PMUL V3.16B, V4.16B, V5.16B", DisassembleAndCheckMnemonic(0x6E259C83, Arm64Mnemonic.PMUL).ToString());
+        Assert.Equal("0x00000000 UMAXP V6.4H, V7.4H, V8.4H", DisassembleAndCheckMnemonic(0x2E68A4E6, Arm64Mnemonic.UMAXP).ToString());
+    }
+
+    [Fact]
+    public void TestAdvancedSimdVectorByElement()
+    {
+        Assert.Equal("0x00000000 FMUL V0.4S, V1.4S, V2.S[3]", DisassembleAndCheckMnemonic(0x4FA29820, Arm64Mnemonic.FMUL).ToString());
+        Assert.Equal("0x00000000 FMLA V3.2D, V4.2D, V5.D[1]", DisassembleAndCheckMnemonic(0x4FC51883, Arm64Mnemonic.FMLA).ToString());
+        Assert.Equal("0x00000000 FMLS V6.2S, V7.2S, V8.S[1]", DisassembleAndCheckMnemonic(0x0FA850E6, Arm64Mnemonic.FMLS).ToString());
+        Assert.Equal("0x00000000 FMULX V9.4S, V10.4S, V11.S[2]", DisassembleAndCheckMnemonic(0x6F8B9949, Arm64Mnemonic.FMULX).ToString());
+
+        Assert.Equal("0x00000000 MLA V0.4H, V1.4H, V2.H[2]", DisassembleAndCheckMnemonic(0x2F620020, Arm64Mnemonic.MLA).ToString());
+        Assert.Equal("0x00000000 MLS V3.8H, V4.8H, V5.H[7]", DisassembleAndCheckMnemonic(0x6F754883, Arm64Mnemonic.MLS).ToString());
+        Assert.Equal("0x00000000 MUL V6.4S, V7.4S, V8.S[0]", DisassembleAndCheckMnemonic(0x4F8880E6, Arm64Mnemonic.MUL).ToString());
+
+        Assert.Equal("0x00000000 SMULL V0.4S, V1.4H, V2.H[1]", DisassembleAndCheckMnemonic(0x0F52A020, Arm64Mnemonic.SMULL).ToString());
+        Assert.Equal("0x00000000 SMULL2 V3.2D, V4.4S, V5.S[3]", DisassembleAndCheckMnemonic(0x4FA5A883, Arm64Mnemonic.SMULL2).ToString());
+        Assert.Equal("0x00000000 UMULL V6.2D, V7.2S, V8.S[1]", DisassembleAndCheckMnemonic(0x2FA8A0E6, Arm64Mnemonic.UMULL).ToString());
+        Assert.Equal("0x00000000 UMLAL V9.4S, V10.4H, V11.H[5]", DisassembleAndCheckMnemonic(0x2F5B2949, Arm64Mnemonic.UMLAL).ToString());
+        Assert.Equal("0x00000000 UMLSL2 V12.2D, V13.4S, V14.S[2]", DisassembleAndCheckMnemonic(0x6F8E69AC, Arm64Mnemonic.UMLSL2).ToString());
+        Assert.Equal("0x00000000 SMLSL V18.2D, V19.2S, V20.S[3]", DisassembleAndCheckMnemonic(0x0FB46A72, Arm64Mnemonic.SMLSL).ToString());
+
+        Assert.Equal("0x00000000 SQDMULH V0.8H, V1.8H, V2.H[4]", DisassembleAndCheckMnemonic(0x4F42C820, Arm64Mnemonic.SQDMULH).ToString());
+        Assert.Equal("0x00000000 SQRDMULH V3.4S, V4.4S, V5.S[1]", DisassembleAndCheckMnemonic(0x4FA5D083, Arm64Mnemonic.SQRDMULH).ToString());
+        Assert.Equal("0x00000000 SQDMULL V6.4S, V7.4H, V8.H[2]", DisassembleAndCheckMnemonic(0x0F68B0E6, Arm64Mnemonic.SQDMULL).ToString());
+        Assert.Equal("0x00000000 SQDMLAL2 V9.2D, V10.4S, V11.S[0]", DisassembleAndCheckMnemonic(0x4F8B3149, Arm64Mnemonic.SQDMLAL2).ToString());
+        Assert.Equal("0x00000000 SQDMLSL V12.4S, V13.4H, V14.H[6]", DisassembleAndCheckMnemonic(0x0F6E79AC, Arm64Mnemonic.SQDMLSL).ToString());
+    }
 }

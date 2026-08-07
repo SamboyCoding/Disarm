@@ -164,4 +164,128 @@ public class DataProcessingTests : BaseDisarmTest
         insn = DisassembleAndCheckMnemonic(0x13007C20, Arm64Mnemonic.ASR);
         Assert.Equal("0x00000000 ASR W0, W1, 0x0", insn.ToString());
     }
+
+    [Fact]
+    public void LogicalShiftedRegisterPreservesShiftType()
+    {
+        var insn = DisassembleAndCheckMnemonic(0x8A823020, Arm64Mnemonic.AND);
+        Assert.Equal(Arm64ShiftType.ASR, insn.Op3ShiftType);
+        Assert.Equal(12, insn.Op3Imm);
+        Assert.Equal("0x00000000 AND X0, X1, X2, ASR 0xC", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x0AA87D08, Arm64Mnemonic.BIC);
+        Assert.Equal("0x00000000 BIC W8, W8, W8, ASR 0x1F", insn.ToString());
+
+        //a shifted zr source is not a plain mov
+        insn = DisassembleAndCheckMnemonic(0xAA060FE5, Arm64Mnemonic.ORR);
+        Assert.Equal("0x00000000 ORR X5, X31, X6, LSL 0x3", insn.ToString());
+    }
+
+    [Fact]
+    public void MoveWideAliases()
+    {
+        var insn = DisassembleAndCheckMnemonic(0xD28000A1, Arm64Mnemonic.MOV);
+        Assert.Equal("0x00000000 MOV X1, 0x5", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0xD2A000A1, Arm64Mnemonic.MOV);
+        Assert.Equal("0x00000000 MOV X1, 0x50000", insn.ToString());
+
+        //movn resolves to the inverted value
+        insn = DisassembleAndCheckMnemonic(0x928003F8, Arm64Mnemonic.MOV);
+        Assert.Equal(Arm64Register.X24, insn.Op0Reg);
+        Assert.Equal(-32, insn.Op1Imm);
+
+        insn = DisassembleAndCheckMnemonic(0x12800000, Arm64Mnemonic.MOV);
+        Assert.Equal(0xFFFFFFFFL, insn.Op1Imm);
+        Assert.Equal("0x00000000 MOV W0, 0xFFFFFFFF", insn.ToString());
+
+        //movk keeps its identity, with the immediate shifted into place
+        insn = DisassembleAndCheckMnemonic(0xF2C24683, Arm64Mnemonic.MOVK);
+        Assert.Equal(0x123400000000L, insn.Op1Imm);
+    }
+
+    [Fact]
+    public void LogicalImmediateMovAlias()
+    {
+        //a bitmask immediate no movz/movn could encode displays as mov
+        var insn = DisassembleAndCheckMnemonic(0xB2009FE2, Arm64Mnemonic.MOV);
+        Assert.Equal("0x00000000 MOV X2, 0xFF00FF00FF00FF", insn.ToString());
+
+        //but a movz-able immediate keeps the orr form
+        insn = DisassembleAndCheckMnemonic(0x320003E0, Arm64Mnemonic.ORR);
+        Assert.Equal("0x00000000 ORR W0, W31, 0x1", insn.ToString());
+    }
+
+    [Fact]
+    public void VariableShiftAliases()
+    {
+        var insn = DisassembleAndCheckMnemonic(0x9AC22020, Arm64Mnemonic.LSL);
+        Assert.Equal("0x00000000 LSL X0, X1, X2", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x1AC52483, Arm64Mnemonic.LSR);
+        Assert.Equal("0x00000000 LSR W3, W4, W5", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x9AC828E6, Arm64Mnemonic.ASR);
+        Assert.Equal("0x00000000 ASR X6, X7, X8", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x1ACB2D49, Arm64Mnemonic.ROR);
+        Assert.Equal("0x00000000 ROR W9, W10, W11", insn.ToString());
+    }
+
+    [Fact]
+    public void CnegAlias()
+    {
+        var insn = DisassembleAndCheckMnemonic(0x5A811420, Arm64Mnemonic.CNEG);
+        Assert.Equal("0x00000000 CNEG W0, W1, EQ", insn.ToString());
+    }
+
+    [Fact]
+    public void MultiplyAliases()
+    {
+        var insn = DisassembleAndCheckMnemonic(0x9B287CE6, Arm64Mnemonic.SMULL);
+        Assert.Equal("0x00000000 SMULL X6, W7, W8", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x9BAB7D49, Arm64Mnemonic.UMULL);
+        Assert.Equal("0x00000000 UMULL X9, W10, W11", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x9B2EFDAC, Arm64Mnemonic.SMNEGL);
+        Assert.Equal("0x00000000 SMNEGL X12, W13, W14", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x9BB1FE0F, Arm64Mnemonic.UMNEGL);
+        Assert.Equal("0x00000000 UMNEGL X15, W16, W17", insn.ToString());
+    }
+
+    [Fact]
+    public void BitfieldInsertAliases()
+    {
+        var insn = DisassembleAndCheckMnemonic(0xB3783C41, Arm64Mnemonic.BFI);
+        Assert.Equal("0x00000000 BFI X1, X2, 0x8, 0x10", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x33043C83, Arm64Mnemonic.BFXIL);
+        Assert.Equal("0x00000000 BFXIL W3, W4, 0x4, 0xC", insn.ToString());
+
+        //rn == zr would be bfc, but llvm prints it as bfi with the zr visible so we do too
+        insn = DisassembleAndCheckMnemonic(0xB3701FE5, Arm64Mnemonic.BFI);
+        Assert.Equal("0x00000000 BFI X5, X31, 0x10, 0x8", insn.ToString());
+    }
+
+    [Fact]
+    public void AdrIsPcRelative()
+    {
+        var insn = Disassembler.Disassemble(new byte[] { 0x8A, 0x00, 0x00, 0x10 }, 0x1C73FA0).Single();
+
+        Assert.Equal(Arm64Mnemonic.ADR, insn.Mnemonic);
+        Assert.Equal(Arm64Register.X10, insn.Op0Reg);
+        Assert.Equal(Arm64OperandKind.ImmediatePcRelative, insn.Op1Kind);
+        Assert.Equal(0x10, insn.Op1Imm);
+        Assert.Equal(0x1C73FB0UL, insn.Op1PcRelImm);
+        Assert.Equal("0x01C73FA0 ADR X10, 0x1C73FB0", insn.ToString());
+
+        insn = Disassembler.Disassemble(new byte[] { 0xA0, 0xFE, 0xFF, 0x10 }, 0x1C67FA4).Single();
+
+        Assert.Equal(Arm64Mnemonic.ADR, insn.Mnemonic);
+        Assert.Equal(-0x2C, insn.Op1Imm);
+        Assert.Equal(0x1C67F78UL, insn.Op1PcRelImm);
+        Assert.Equal("0x01C67FA4 ADR X0, 0x1C67F78", insn.ToString());
+    }
 }

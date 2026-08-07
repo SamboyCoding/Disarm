@@ -82,4 +82,21 @@ public class BranchTests : BaseDisarmTest
         
         Assert.Equal("0x00000000 BRABZ X0", insn.ToString());
     }
+
+    [Fact]
+    public void TestTestAndBranch()
+    {
+        var insn = DisassembleAndCheckMnemonic(0x36180201, Arm64Mnemonic.TBZ);
+
+        Assert.Equal(Arm64Register.W1, insn.Op0Reg);
+        Assert.Equal(3, insn.Op1Imm);
+        Assert.Equal("0x00000000 TBZ W1, 0x3, 0x40", insn.ToString());
+
+        //b5 set contributes bit 5 of the bit number and makes the register an x reg
+        insn = DisassembleAndCheckMnemonic(0xB71FFF02, Arm64Mnemonic.TBNZ);
+
+        Assert.Equal(Arm64Register.X2, insn.Op0Reg);
+        Assert.Equal(35, insn.Op1Imm);
+        Assert.Equal(-32, insn.Op2Imm);
+    }
 }

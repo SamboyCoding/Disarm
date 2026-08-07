@@ -481,6 +481,17 @@ public class LoadStoreTests : BaseDisarmTest
     }
 
     [Fact]
+    public void TestVector128FromImmUnsigned()
+    {
+        //the imm12 for q registers scales by 16
+        var insn = DisassembleAndCheckMnemonic(0x3D800BE0, Arm64Mnemonic.STR);
+        Assert.Equal("0x00000000 STR V0, [X31 + 0x20]", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x3DC05441, Arm64Mnemonic.LDR);
+        Assert.Equal("0x00000000 LDR V1, [X2 + 0x150]", insn.ToString());
+    }
+
+    [Fact]
     public void TestRegOffsetUndefinedOption()
     {
         //option<1> == 0 is unallocated for register offset loads/stores
