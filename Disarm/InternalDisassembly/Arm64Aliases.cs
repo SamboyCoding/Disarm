@@ -101,33 +101,68 @@ internal static class Arm64Aliases
             
         }
 
-        if (instruction.Mnemonic == Arm64Mnemonic.SBFM && instruction.Op2Kind == Arm64OperandKind.Immediate && instruction.Op3Kind == Arm64OperandKind.Immediate && instruction.Op2Imm == 0)
+        if (instruction.Mnemonic is Arm64Mnemonic.SBFM or Arm64Mnemonic.UBFM && instruction.Op2Kind == Arm64OperandKind.Immediate && instruction.Op3Kind == Arm64OperandKind.Immediate)
         {
-            //Check imm3
-            var imm3 = instruction.Op3Imm;
-            
-            if(imm3 is > 0b11111 or < 0b111)
-                return;
+            var isSigned = instruction.Mnemonic == Arm64Mnemonic.SBFM;
+            var immr = instruction.Op2Imm;
+            var imms = instruction.Op3Imm;
+            var is64Bit = instruction.Op0Reg is >= Arm64Register.X0 and <= Arm64Register.X31;
+            var regSize = is64Bit ? 64 : 32;
 
-            var newMnemonic = imm3 switch
+            //shift left, only exists for ubfm. encoded as immr = -shift MOD regsize, imms = regsize-1-shift
+            if (!isSigned && imms != regSize - 1 && imms + 1 == immr)
             {
-                0b111 => Arm64Mnemonic.SXTB,
-                0b1111 => Arm64Mnemonic.SXTH,
-                0b11111 => Arm64Mnemonic.SXTW,
-                _ => throw new("Impossible imm3")
-            };
-            
-            //SBFM Rd, Rn, 0, imm3 => SXT{B|H|W} Rd, Rn
-            instruction.Mnemonic = newMnemonic;
-            instruction.Op2Kind = Arm64OperandKind.None;
-            instruction.Op2Reg = Arm64Register.INVALID;
-            instruction.Op3Kind = Arm64OperandKind.None;
-            instruction.Op3Reg = Arm64Register.INVALID;
-            
-            //Second reg has to be remapped to a W reg not an X one, if the first reg is an X one
-            if (instruction.Op0Reg is >= Arm64Register.X0 and <= Arm64Register.X31)
-                instruction.Op1Reg = Arm64Register.W0 + (instruction.Op1Reg - Arm64Register.X0);
-            
+                //UBFM Rd, Rn, #(imms+1), #imms => LSL Rd, Rn, #(regsize-1-imms)
+                instruction.Mnemonic = Arm64Mnemonic.LSL;
+                instruction.Op2Imm = regSize - 1 - imms;
+                instruction.Op3Kind = Arm64OperandKind.None;
+                instruction.Op3Imm = 0;
+                return;
+            }
+
+            if (imms == regSize - 1)
+            {
+                //[SU]BFM Rd, Rn, #immr, #(regsize-1) => LSR/ASR Rd, Rn, #immr
+                instruction.Mnemonic = isSigned ? Arm64Mnemonic.ASR : Arm64Mnemonic.LSR;
+                instruction.Op3Kind = Arm64OperandKind.None;
+                instruction.Op3Imm = 0;
+                return;
+            }
+
+            //the extends are only valid as sign extension for both widths, or zero extension of a w reg
+            if (immr == 0 && (isSigned || !is64Bit) && (imms == 0b111 || imms == 0b1111 || (imms == 0b1_1111 && is64Bit)))
+            {
+                //[SU]BFM Rd, Rn, #0, #(7|15|31) => [SU]XT{B|H|W} Rd, Wn
+                instruction.Mnemonic = imms switch
+                {
+                    0b111 => isSigned ? Arm64Mnemonic.SXTB : Arm64Mnemonic.UXTB,
+                    0b1111 => isSigned ? Arm64Mnemonic.SXTH : Arm64Mnemonic.UXTH,
+                    _ => Arm64Mnemonic.SXTW,
+                };
+                instruction.Op2Kind = Arm64OperandKind.None;
+                instruction.Op2Imm = 0;
+                instruction.Op3Kind = Arm64OperandKind.None;
+                instruction.Op3Imm = 0;
+
+                //Second reg has to be remapped to a W reg not an X one, if the first reg is an X one
+                if (is64Bit)
+                    instruction.Op1Reg = Arm64Register.W0 + (instruction.Op1Reg - Arm64Register.X0);
+
+                return;
+            }
+
+            if (imms < immr)
+            {
+                //[SU]BFM Rd, Rn, #immr, #imms => [SU]BFIZ Rd, Rn, #(regsize-immr), #(imms+1)
+                instruction.Mnemonic = isSigned ? Arm64Mnemonic.SBFIZ : Arm64Mnemonic.UBFIZ;
+                instruction.Op2Imm = regSize - immr;
+                instruction.Op3Imm = imms + 1;
+                return;
+            }
+
+            //every case bfxpreferred() excludes is handled above, so anything left is [SU]BFX Rd, Rn, #immr, #(imms-immr+1)
+            instruction.Mnemonic = isSigned ? Arm64Mnemonic.SBFX : Arm64Mnemonic.UBFX;
+            instruction.Op3Imm = imms - immr + 1;
             return;
         }
 
