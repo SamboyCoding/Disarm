@@ -15,7 +15,7 @@ internal static class Arm64LoadsStores
         //Unfortunately, this makes the code a bit ugly.
 
         //They are, at least, *somewhat* grouped by category using op0
-        if ((op0 & 0b1011) == 0)
+        if ((op0 & 0b1011) == 0 && op1 == 1)
             //Mostly undefined instructions, but a couple of them are defined
             return DisassembleAdvancedLoadStore(instruction);
 
@@ -285,16 +285,15 @@ internal static class Arm64LoadsStores
             _ => throw new Arm64UndefinedInstructionException("LoadStoreOrdered: Impossible combination")
         };
         
-        var baseNReg = Arm64Register.X0;
-        
         return new()
         {
             Mnemonic = mnemonic,
             MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister,
             Op0Kind = Arm64OperandKind.Register,
-            Op1Kind = Arm64OperandKind.Register,
+            Op1Kind = Arm64OperandKind.Memory,
             Op0Reg = baseTReg + (int)Rt,
-            Op1Reg = baseNReg + (int)Rn,
+            MemBase = Arm64Register.X0 + (int)Rn,
+            MemIndexMode = Arm64MemoryIndexMode.Offset,
         };
     }
 
@@ -495,7 +494,7 @@ internal static class Arm64LoadsStores
         
         var baseReg = mnemonic switch
         {
-            Arm64Mnemonic.STR or Arm64Mnemonic.LDR when isVector && opc is 0 => size switch
+            Arm64Mnemonic.STR or Arm64Mnemonic.LDR when isVector && opc is 0 or 1 => size switch
             {
                 0 => Arm64Register.B0,
                 1 => Arm64Register.H0,
@@ -507,8 +506,8 @@ internal static class Arm64LoadsStores
             Arm64Mnemonic.STRB or Arm64Mnemonic.LDRB or Arm64Mnemonic.STRH or Arm64Mnemonic.LDRH => Arm64Register.W0,
             Arm64Mnemonic.STR or Arm64Mnemonic.LDR when size is 0b10 => Arm64Register.W0,
             Arm64Mnemonic.STR or Arm64Mnemonic.LDR => Arm64Register.X0,
-            Arm64Mnemonic.LDRSH when opc is 0b10 => Arm64Register.X0,
-            Arm64Mnemonic.LDRSH => Arm64Register.W0,
+            Arm64Mnemonic.LDRSB or Arm64Mnemonic.LDRSH when opc is 0b10 => Arm64Register.X0,
+            Arm64Mnemonic.LDRSB or Arm64Mnemonic.LDRSH => Arm64Register.W0,
             Arm64Mnemonic.LDRSW => Arm64Register.X0,
             _ => throw new("Impossible mnemonic")
         };
@@ -542,7 +541,7 @@ internal static class Arm64LoadsStores
         var rn = (int)(instruction >> 5) & 0b1_1111; // Bits - 5-9
         var rt = (int)instruction & 0b1_1111; // Bits - 0-14
 
-        var offset = Arm64CommonUtils.SignExtend(imm7, 7, 64) << (2 + (l ? 1 : 0));
+        var offset = Arm64CommonUtils.SignExtend(imm7, 7, 64) << (v ? 2 + (int)opc : opc == 0b00 ? 2 : 3);
         
         return opc switch
         {
@@ -552,7 +551,7 @@ internal static class Arm64LoadsStores
                 MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister,
                 MemIndexMode = Arm64MemoryIndexMode.Offset,
                 MemOffset = offset,
-                MemBase = (opc == 0b00 ? Arm64Register.W0 : Arm64Register.X0) + rn,
+                MemBase = Arm64Register.X0 + rn,
                 Op0Kind = Arm64OperandKind.Register,
                 Op1Kind = Arm64OperandKind.Register,
                 Op2Kind = Arm64OperandKind.Memory,
@@ -565,7 +564,7 @@ internal static class Arm64LoadsStores
                 MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister,
                 MemIndexMode = Arm64MemoryIndexMode.Offset,
                 MemOffset = offset,
-                MemBase = (opc == 0b00 ? Arm64Register.W0 : Arm64Register.X0) + rn,
+                MemBase = Arm64Register.X0 + rn,
                 Op0Kind = Arm64OperandKind.Register,
                 Op1Kind = Arm64OperandKind.Register,
                 Op2Kind = Arm64OperandKind.Memory,
@@ -685,24 +684,24 @@ internal static class Arm64LoadsStores
         {
             0b00 when isVector => Arm64Register.S0, //32-bit vector
             0b00 => Arm64Register.W0, //32-bit
-            0b01 when mnemonic == Arm64Mnemonic.STGP => Arm64Register.W0, //32-bit
-            0b01 => Arm64Register.D0, //All other group 1 is 64-bit vector
+            0b01 when isVector => Arm64Register.D0, //64-bit vector
+            0b01 => Arm64Register.X0, //ldpsw and stgp both use x regs
             0b10 when isVector => Arm64Register.V0, //128-bit vector
             0b10 => Arm64Register.X0, //64-bit
             _ => throw new("Impossible opc value")
         };
 
-        var dataSizeBits = opc switch
+        //ldpsw loads two 32-bit words, stgp works on 16-byte tag granules, everything else matches register width
+        var offsetScaleBytes = opc switch
         {
-            0b00 => 32,
-            0b01 when mnemonic == Arm64Mnemonic.STGP => 32,
-            0b01 => 64,
-            0b10 when isVector => 128,
-            0b10 => 64,
+            0b00 => 4,
+            0b01 when mnemonic == Arm64Mnemonic.LDPSW => 4,
+            0b01 when mnemonic == Arm64Mnemonic.STGP => 16,
+            0b01 => 8,
+            0b10 when isVector => 16,
+            0b10 => 8,
             _ => throw new("Impossible opc value")
         };
-
-        var dataSizeBytes = dataSizeBits / 8;
 
         //The offset must be aligned to the size of the data so is stored in imm7 divided by this factor
         //So we multiply by the size of the data to get the offset
@@ -722,7 +721,7 @@ internal static class Arm64LoadsStores
             Op0Reg = reg1,
             Op1Reg = reg2,
             MemBase = regN,
-            MemOffset = realImm7 * dataSizeBytes,
+            MemOffset = realImm7 * offsetScaleBytes,
             MemIndexMode = mode,
             MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister,
         };
@@ -832,8 +831,8 @@ internal static class Arm64LoadsStores
             Arm64Mnemonic.STRB or Arm64Mnemonic.LDRB or Arm64Mnemonic.STRH or Arm64Mnemonic.LDRH => Arm64Register.W0,
             Arm64Mnemonic.STR or Arm64Mnemonic.LDR when size is 0b10 => Arm64Register.W0,
             Arm64Mnemonic.STR or Arm64Mnemonic.LDR => Arm64Register.X0,
-            Arm64Mnemonic.LDRSH when opc is 0b10 => Arm64Register.X0,
-            Arm64Mnemonic.LDRSH => Arm64Register.W0,
+            Arm64Mnemonic.LDRSB or Arm64Mnemonic.LDRSH when opc is 0b10 => Arm64Register.X0,
+            Arm64Mnemonic.LDRSB or Arm64Mnemonic.LDRSH => Arm64Register.W0,
             Arm64Mnemonic.LDRSW => Arm64Register.X0,
             _ => throw new("Impossible mnemonic")
         };
@@ -870,7 +869,10 @@ internal static class Arm64LoadsStores
         var sFlag = instruction.TestBit(12);
         var rn = (int)(instruction >> 5) & 0b1_1111; //Bits 5-9
         var rt = (int)(instruction & 0b1_1111); //Bits 0-4
-        
+
+        if (!option.TestBit(1))
+            throw new Arm64UndefinedInstructionException("Load/store register from register offset: option<1> == 0 is unallocated");
+
         var mnemonic = opc switch
         {
             0b00 => size switch
@@ -918,7 +920,7 @@ internal static class Arm64LoadsStores
 
         var baseReg = mnemonic switch
         {
-            Arm64Mnemonic.STR or Arm64Mnemonic.LDR when isVector && opc is 0 => size switch
+            Arm64Mnemonic.STR or Arm64Mnemonic.LDR when isVector && opc is 0 or 1 => size switch
             {
                 0 => Arm64Register.B0,
                 1 => Arm64Register.H0,
@@ -930,8 +932,8 @@ internal static class Arm64LoadsStores
             Arm64Mnemonic.STRB or Arm64Mnemonic.LDRB or Arm64Mnemonic.STRH or Arm64Mnemonic.LDRH => Arm64Register.W0,
             Arm64Mnemonic.STR or Arm64Mnemonic.LDR when size is 0b10 => Arm64Register.W0,
             Arm64Mnemonic.STR or Arm64Mnemonic.LDR => Arm64Register.X0,
-            Arm64Mnemonic.LDRSH when opc is 0b10 => Arm64Register.X0,
-            Arm64Mnemonic.LDRSH => Arm64Register.W0,
+            Arm64Mnemonic.LDRSB or Arm64Mnemonic.LDRSH when opc is 0b10 => Arm64Register.X0,
+            Arm64Mnemonic.LDRSB or Arm64Mnemonic.LDRSH => Arm64Register.W0,
             Arm64Mnemonic.LDRSW => Arm64Register.X0,
             _ => throw new("Impossible mnemonic")
         };
@@ -967,7 +969,8 @@ internal static class Arm64LoadsStores
             MemAddendReg = secondRegBase + rm,
             MemIndexMode = Arm64MemoryIndexMode.Offset,
             MemExtendType = isShiftedRegister ? Arm64ExtendType.NONE : extendKind,
-            MemShiftType = isShiftedRegister ? Arm64ShiftType.LSL : Arm64ShiftType.NONE,
+            MemShiftType = isShiftedRegister && sFlag ? Arm64ShiftType.LSL : Arm64ShiftType.NONE, //lsl without the s flag is just a plain register offset
+
             MemExtendOrShiftAmount = shiftAmount,
             MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister,
         };
@@ -1039,7 +1042,7 @@ internal static class Arm64LoadsStores
         
         var baseReg = mnemonic switch
         {
-            Arm64Mnemonic.STUR or Arm64Mnemonic.LDUR when isVector && opc is 0 => size switch
+            Arm64Mnemonic.STUR or Arm64Mnemonic.LDUR when isVector && opc is 0 or 1 => size switch
             {
                 0 => Arm64Register.B0,
                 1 => Arm64Register.H0,
@@ -1051,8 +1054,8 @@ internal static class Arm64LoadsStores
             Arm64Mnemonic.STURB or Arm64Mnemonic.LDURB or Arm64Mnemonic.STURH or Arm64Mnemonic.LDURH => Arm64Register.W0,
             Arm64Mnemonic.STUR or Arm64Mnemonic.LDUR when size is 0b10 => Arm64Register.W0,
             Arm64Mnemonic.STUR or Arm64Mnemonic.LDUR => Arm64Register.X0,
-            Arm64Mnemonic.LDURSH when opc is 0b10 => Arm64Register.X0,
-            Arm64Mnemonic.LDURSH => Arm64Register.W0,
+            Arm64Mnemonic.LDURSB or Arm64Mnemonic.LDURSH when opc is 0b10 => Arm64Register.X0,
+            Arm64Mnemonic.LDURSB or Arm64Mnemonic.LDURSH => Arm64Register.W0,
             Arm64Mnemonic.LDURSW => Arm64Register.X0,
             _ => throw new("Impossible mnemonic")
         };

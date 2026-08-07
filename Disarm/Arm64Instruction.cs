@@ -219,19 +219,24 @@ public struct Arm64Instruction
                 .Append(Math.Abs(MemOffset).ToString("X"));
         }
         
-        if(MemExtendType != Arm64ExtendType.NONE)
+        if (MemExtendType != Arm64ExtendType.NONE)
+        {
             sb.Append(", ").Append(MemExtendType.ToString());
-        else if(MemShiftType != Arm64ShiftType.NONE)
-            sb.Append(", ").Append(MemShiftType.ToString());
-        
-        if(MemExtendOrShiftAmount != 0)
-            sb.Append(" #").Append(MemExtendOrShiftAmount);
+
+            if(MemExtendOrShiftAmount != 0)
+                sb.Append(" #").Append(MemExtendOrShiftAmount);
+        }
+        else if (MemShiftType != Arm64ShiftType.NONE)
+        {
+            //explicit shifts always print their amount, an lsl #0 is a distinct encoding from no shift at all
+            sb.Append(", ").Append(MemShiftType.ToString()).Append(" #").Append(MemExtendOrShiftAmount);
+        }
 
         sb.Append(']');
 
         if (MemIndexMode == Arm64MemoryIndexMode.PreIndex)
             sb.Append('!');
         else if(MemIndexMode == Arm64MemoryIndexMode.PostIndex && MemOffset != 0)
-            sb.Append(", #0x").Append(MemOffset.ToString("X"));
+            sb.Append(", #").Append(MemOffset < 0 ? "-0x" : "0x").Append(Math.Abs(MemOffset).ToString("X"));
     }
 }
