@@ -82,10 +82,10 @@ internal static class Arm64CommonUtils
     private static BitArray LongToBits(long value, int numBits)
     {
         var bits = new BitArray(numBits);
-        var mask = 1L << (numBits - 1);
+        var mask = 1UL << (numBits - 1); //unsigned, a signed mask starting at bit 63 would smear on shift
         for (var i = 0; i < numBits; i++)
         {
-            var isBitSet = (value & mask) != 0;
+            var isBitSet = ((ulong)value & mask) != 0;
             mask >>= 1;
             bits[i] = isBitSet;
         }
@@ -174,9 +174,9 @@ internal static class Arm64CommonUtils
         var diff = s - r;
         var esize = 1 << len;
 
-        var d = diff & ((1 << (len - 1)) - 1); //UInt(diff<len-1:0>)
-        var wElem = (1 << (s + 1)) - 1;
-        var tElem = (1 << (d + 1)) - 1;
+        var d = diff & ((1 << len) - 1); //UInt(diff<len-1:0>)
+        var wElem = s == 63 ? -1L : (1L << (s + 1)) - 1;
+        var tElem = d == 63 ? -1L : (1L << (d + 1)) - 1;
 
         var wMask = Replicate(LongToBits((long)RotateRight((ulong)wElem, esize, r), esize), desiredSize);
         var tMask = Replicate(LongToBits(tElem, esize), desiredSize);

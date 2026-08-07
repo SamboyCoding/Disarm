@@ -216,6 +216,96 @@ internal static class Arm64Simd
         };
     }
 
+    internal static Arm64Instruction LoadStoreMultipleStructures(uint instruction) => LoadStoreMultipleStructuresImpl(instruction, false);
+
+    internal static Arm64Instruction LoadStoreMultipleStructuresPostIndexed(uint instruction) => LoadStoreMultipleStructuresImpl(instruction, true);
+
+    private static Arm64Instruction LoadStoreMultipleStructuresImpl(uint instruction, bool postIndexed)
+    {
+        var q = instruction.TestBit(30);
+        var isLoad = instruction.TestBit(22);
+        var rm = (int)(instruction >> 16) & 0b1_1111; //Bits 16-20
+        var opcode = (instruction >> 12) & 0b1111; //Bits 12-15
+        var size = (instruction >> 10) & 0b11; //Bits 10-11
+        var rn = (int)(instruction >> 5) & 0b1_1111; //Bits 5-9
+        var rt = (int)(instruction & 0b1_1111); //Bits 0-4
+
+        var (mnemonic, numRegs) = opcode switch
+        {
+            0b0000 => (isLoad ? Arm64Mnemonic.LD4 : Arm64Mnemonic.ST4, 4),
+            0b0010 => (isLoad ? Arm64Mnemonic.LD1 : Arm64Mnemonic.ST1, 4),
+            0b0100 => (isLoad ? Arm64Mnemonic.LD3 : Arm64Mnemonic.ST3, 3),
+            0b0110 => (isLoad ? Arm64Mnemonic.LD1 : Arm64Mnemonic.ST1, 3),
+            0b0111 => (isLoad ? Arm64Mnemonic.LD1 : Arm64Mnemonic.ST1, 1),
+            0b1000 => (isLoad ? Arm64Mnemonic.LD2 : Arm64Mnemonic.ST2, 2),
+            0b1010 => (isLoad ? Arm64Mnemonic.LD1 : Arm64Mnemonic.ST1, 2),
+            _ => throw new Arm64UndefinedInstructionException($"Load/store multiple structures: opcode 0x{opcode:X} is unallocated")
+        };
+
+        if (size == 0b11 && !q && mnemonic is not (Arm64Mnemonic.LD1 or Arm64Mnemonic.ST1))
+            throw new Arm64UndefinedInstructionException("Load/store multiple structures: 1D arrangement is only valid for LD1/ST1");
+
+        var arrangement = size switch
+        {
+            0b00 => q ? Arm64ArrangementSpecifier.SixteenB : Arm64ArrangementSpecifier.EightB,
+            0b01 => q ? Arm64ArrangementSpecifier.EightH : Arm64ArrangementSpecifier.FourH,
+            0b10 => q ? Arm64ArrangementSpecifier.FourS : Arm64ArrangementSpecifier.TwoS,
+            0b11 => q ? Arm64ArrangementSpecifier.TwoD : Arm64ArrangementSpecifier.OneD,
+            _ => throw new("Impossible size")
+        };
+
+        if (numRegs == 4)
+            //TODO need 5th operand slot, 4 registers + memory
+            return new()
+            {
+                Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
+                MnemonicCategory = Arm64MnemonicCategory.SimdStructureLoadOrStore,
+            };
+
+        var insn = new Arm64Instruction
+        {
+            Mnemonic = mnemonic,
+            Op0Kind = Arm64OperandKind.Register,
+            Op0Reg = Arm64Register.V0 + rt,
+            Op0Arrangement = arrangement,
+            MemBase = Arm64Register.X0 + rn,
+            MemIndexMode = postIndexed ? Arm64MemoryIndexMode.PostIndex : Arm64MemoryIndexMode.Offset,
+            MnemonicCategory = Arm64MnemonicCategory.SimdStructureLoadOrStore,
+        };
+
+        if (numRegs > 1)
+        {
+            insn.Op1Kind = Arm64OperandKind.Register;
+            insn.Op1Reg = Arm64Register.V0 + (rt + 1) % 32; //register lists wrap
+            insn.Op1Arrangement = arrangement;
+        }
+
+        if (numRegs > 2)
+        {
+            insn.Op2Kind = Arm64OperandKind.Register;
+            insn.Op2Reg = Arm64Register.V0 + (rt + 2) % 32;
+            insn.Op2Arrangement = arrangement;
+        }
+
+        //memory operand goes in the slot after the last register
+        if (numRegs == 1)
+            insn.Op1Kind = Arm64OperandKind.Memory;
+        else if (numRegs == 2)
+            insn.Op2Kind = Arm64OperandKind.Memory;
+        else
+            insn.Op3Kind = Arm64OperandKind.Memory;
+
+        if (postIndexed)
+        {
+            if (rm == 0b1_1111)
+                insn.MemOffset = (q ? 16 : 8) * numRegs; //post-index by immediate
+            else
+                insn.MemAddendReg = Arm64Register.X0 + rm; //post-index by register
+        }
+
+        return insn;
+    }
+
     internal static Arm64Instruction LoadStoreSingleStructure(uint instruction)
     {
         return new()

@@ -562,16 +562,15 @@ internal static class Arm64DataProcessingRegister
             0b010 when !o0 && is64Bit => Arm64Mnemonic.SMULH,
             0b101 when o0 && is64Bit => Arm64Mnemonic.UMSUBL,
             0b101 when !o0 && is64Bit => Arm64Mnemonic.UMADDL,
-            0b110 when o0 && is64Bit => Arm64Mnemonic.UMULH,
+            0b110 when !o0 && is64Bit => Arm64Mnemonic.UMULH,
             _ => throw new Arm64UndefinedInstructionException($"DataProcessing3Source: unallocated operand combination: op31 = {op31} o0 = {o0} sf = {(is64Bit ? 1 : 0)}")
         };
-        
+
         var baseReg = is64Bit ? Arm64Register.X0 : Arm64Register.W0;
-        
-        var regM = baseReg + rm;
-        var regN = baseReg + rn;
-        var regD = baseReg + rd;
-        var regA = baseReg + ra;
+
+        //the widening multiplies read 32-bit sources but write a 64-bit result
+        var sourceBaseReg = op31 is 0b001 or 0b101 ? Arm64Register.W0 : baseReg;
+        var hasRa = mnemonic is not (Arm64Mnemonic.SMULH or Arm64Mnemonic.UMULH);
 
         return new()
         {
@@ -579,11 +578,11 @@ internal static class Arm64DataProcessingRegister
             Op0Kind = Arm64OperandKind.Register,
             Op1Kind = Arm64OperandKind.Register,
             Op2Kind = Arm64OperandKind.Register,
-            Op3Kind = Arm64OperandKind.Register,
-            Op0Reg = regD,
-            Op1Reg = regN,
-            Op2Reg = regM,
-            Op3Reg = regA,
+            Op3Kind = hasRa ? Arm64OperandKind.Register : Arm64OperandKind.None,
+            Op0Reg = baseReg + rd,
+            Op1Reg = sourceBaseReg + rn,
+            Op2Reg = sourceBaseReg + rm,
+            Op3Reg = hasRa ? baseReg + ra : Arm64Register.INVALID,
             MnemonicCategory = Arm64MnemonicCategory.Math,
         };
     }

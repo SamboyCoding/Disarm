@@ -65,4 +65,56 @@ public class DataProcessingTests : BaseDisarmTest
         DisassembleAndCheckMnemonic(0x5A020020, Arm64Mnemonic.SBC);
         DisassembleAndCheckMnemonic(0x7A020020, Arm64Mnemonic.SBCS);
     }
+
+    [Fact]
+    public void DataProcessing3Source()
+    {
+        var insn = DisassembleAndCheckMnemonic(0x9BC27C20, Arm64Mnemonic.UMULH);
+        Assert.Equal("0x00000000 UMULH X0, X1, X2", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x9B457C83, Arm64Mnemonic.SMULH);
+        Assert.Equal("0x00000000 SMULH X3, X4, X5", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x9B2824E6, Arm64Mnemonic.SMADDL);
+        Assert.Equal("0x00000000 SMADDL X6, W7, W8, X9", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x9BACB56A, Arm64Mnemonic.UMSUBL);
+        Assert.Equal("0x00000000 UMSUBL X10, W11, W12, X13", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x1B1045EE, Arm64Mnemonic.MADD);
+        Assert.Equal("0x00000000 MADD W14, W15, W16, W17", insn.ToString());
+    }
+
+    [Fact]
+    public void DataProcessingImmediateScaleIsRight()
+    {
+        var insn = DisassembleAndCheckMnemonic(0x927D0108, Arm64Mnemonic.AND);
+
+        Assert.Equal("0x00000000 AND X8, X8, 0x8", insn.ToString());
+    }
+
+    [Fact]
+    public void LogicalImmediates()
+    {
+        var insn = DisassembleAndCheckMnemonic(0x92407C20, Arm64Mnemonic.AND);
+        Assert.Equal("0x00000000 AND X0, X1, 0xFFFFFFFF", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0xB200CC62, Arm64Mnemonic.ORR);
+        Assert.Equal("0x00000000 ORR X2, X3, 0xF0F0F0F0F0F0F0F", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x520100A4, Arm64Mnemonic.EOR);
+        Assert.Equal("0x00000000 EOR W4, W5, 0x80000000", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0xF24004E6, Arm64Mnemonic.ANDS);
+        Assert.Equal("0x00000000 ANDS X6, X7, 0x3", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x927FF949, Arm64Mnemonic.AND);
+        Assert.Equal("0x00000000 AND X9, X10, 0xFFFFFFFFFFFFFFFE", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x3200018B, Arm64Mnemonic.ORR);
+        Assert.Equal("0x00000000 ORR W11, W12, 0x1", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x9240F9CD, Arm64Mnemonic.AND);
+        Assert.Equal("0x00000000 AND X13, X14, 0x7FFFFFFFFFFFFFFF", insn.ToString());
+    }
 }

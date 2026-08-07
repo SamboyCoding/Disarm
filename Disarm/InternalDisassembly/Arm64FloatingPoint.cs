@@ -205,7 +205,7 @@ internal static class Arm64FloatingPoint
             0b000001 => Arm64Mnemonic.FABS,
             0b000010 => Arm64Mnemonic.FNEG,
             0b000011 => Arm64Mnemonic.FSQRT,
-            0b000100 => throw new Arm64UndefinedInstructionException("Floating-point data-processing (1 source): opcode 0b000100 is reserved"),
+            0b000100 => Arm64Mnemonic.FCVT,
             0b000101 => Arm64Mnemonic.FCVT,
             0b000110 => throw new Arm64UndefinedInstructionException("Floating-point data-processing (1 source): opcode 0b000110 is reserved"),
             0b000111 => Arm64Mnemonic.FCVT,
@@ -238,16 +238,31 @@ internal static class Arm64FloatingPoint
             _ => throw new("Impossible ptype"),
         };
         
-        var regD = baseReg + rd;
-        var regN = baseReg + rn;
+        var destBaseReg = baseReg;
+        if (mnemonic == Arm64Mnemonic.FCVT)
+        {
+            //fcvt changes precision, destination type comes from the low two opcode bits
+            var opc = opcode & 0b11;
+
+            if (opc == ptype)
+                throw new Arm64UndefinedInstructionException($"Floating-point data-processing (1 source): FCVT with matching source and destination precision (opc = {opc}, ptype = {ptype})");
+
+            destBaseReg = opc switch
+            {
+                0b00 => Arm64Register.S0,
+                0b01 => Arm64Register.D0,
+                0b11 => Arm64Register.H0,
+                _ => throw new("Impossible opc"),
+            };
+        }
 
         return new()
         {
             Mnemonic = mnemonic,
             Op0Kind = Arm64OperandKind.Register,
             Op1Kind = Arm64OperandKind.Register,
-            Op0Reg = regD,
-            Op1Reg = regN,
+            Op0Reg = destBaseReg + rd,
+            Op1Reg = baseReg + rn,
             MnemonicCategory = category,
         };
     }

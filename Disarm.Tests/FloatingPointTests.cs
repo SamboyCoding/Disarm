@@ -99,8 +99,30 @@ public class FloatingPointTests : BaseDisarmTest
         Assert.Equal("0x00000000 FCCMPE D0, D1, 0x1, MI", insn.ToString());
         
         insn = DisassembleAndCheckMnemonic(0x1EE10401, Arm64Mnemonic.FCCMP);
-        
+
         Assert.Equal(Arm64Register.H0, insn.Op0Reg);
         Assert.Equal(Arm64Register.H1, insn.Op1Reg);
+    }
+
+    [Fact]
+    public void TestFcvt()
+    {
+        var insn = DisassembleAndCheckMnemonic(0x1E624020, Arm64Mnemonic.FCVT);
+        Assert.Equal("0x00000000 FCVT S0, D1", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x1E22C062, Arm64Mnemonic.FCVT);
+        Assert.Equal("0x00000000 FCVT D2, S3", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x1E23C0A4, Arm64Mnemonic.FCVT);
+        Assert.Equal("0x00000000 FCVT H4, S5", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x1EE2C0E6, Arm64Mnemonic.FCVT);
+        Assert.Equal("0x00000000 FCVT D6, H7", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x1EE24128, Arm64Mnemonic.FCVT);
+        Assert.Equal("0x00000000 FCVT S8, H9", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x1E63C16A, Arm64Mnemonic.FCVT);
+        Assert.Equal("0x00000000 FCVT H10, D11", insn.ToString());
     }
 }

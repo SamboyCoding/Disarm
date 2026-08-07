@@ -28,6 +28,7 @@ public static class Arm64EnumExtensions
 
     public static string ToDisassemblyString(this Arm64ArrangementSpecifier specifier) => specifier switch
     {
+        Arm64ArrangementSpecifier.OneD => "1D",
         Arm64ArrangementSpecifier.TwoD => "2D",
         Arm64ArrangementSpecifier.FourH => "4H",
         Arm64ArrangementSpecifier.FourS => "4S",

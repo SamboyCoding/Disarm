@@ -206,9 +206,11 @@ public struct Arm64Instruction
 
     private void AppendMemory(StringBuilder sb)
     {
+        var addendIsPostIndex = MemIndexMode == Arm64MemoryIndexMode.PostIndex && MemAddendReg != Arm64Register.INVALID;
+
         sb.Append('[').Append(MemBase.ToString());
-        
-        if(MemAddendReg != Arm64Register.INVALID)
+
+        if(MemAddendReg != Arm64Register.INVALID && !addendIsPostIndex)
             sb.Append(", ").Append(MemAddendReg.ToString());
 
         if (MemOffset != 0 && MemIndexMode != Arm64MemoryIndexMode.PostIndex)
@@ -236,6 +238,8 @@ public struct Arm64Instruction
 
         if (MemIndexMode == Arm64MemoryIndexMode.PreIndex)
             sb.Append('!');
+        else if(addendIsPostIndex)
+            sb.Append(", ").Append(MemAddendReg.ToString());
         else if(MemIndexMode == Arm64MemoryIndexMode.PostIndex && MemOffset != 0)
             sb.Append(", #").Append(MemOffset < 0 ? "-0x" : "0x").Append(Math.Abs(MemOffset).ToString("X"));
     }

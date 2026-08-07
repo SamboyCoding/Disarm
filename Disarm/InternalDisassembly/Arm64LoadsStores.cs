@@ -53,18 +53,20 @@ internal static class Arm64LoadsStores
 
     private static Arm64Instruction DisassembleAdvancedLoadStore(uint instruction)
     {
-        //Most of these are actually unimplemented. Only two categories are defined, and they are both SIMD, so we can shunt over to that class.
-
         var op2 = (instruction >> 23) & 0b11; //Bits 23-24
         var op3 = (instruction >> 16) & 0b11_1111; //Bits 16-21
 
-        if (op2 == 0b11)
-            //Post-indexed simd load/store structure
-            return Arm64Simd.LoadStoreSingleStructurePostIndexed(instruction);
+        if (op2 == 0b00 && op3 == 0)
+            return Arm64Simd.LoadStoreMultipleStructures(instruction);
 
-        //Doesn't matter what op2 is at this point, unless the bottom 5 bits of op3 are zeroed, this is unimplemented.
-        if ((op3 & 0b1_1111) == 0)
+        if (op2 == 0b01 && !op3.TestBit(5))
+            return Arm64Simd.LoadStoreMultipleStructuresPostIndexed(instruction);
+
+        if (op2 == 0b10 && (op3 & 0b1_1111) == 0)
             return Arm64Simd.LoadStoreSingleStructure(instruction);
+
+        if (op2 == 0b11)
+            return Arm64Simd.LoadStoreSingleStructurePostIndexed(instruction);
 
         throw new Arm64UndefinedInstructionException($"Advanced load/store: Congrats, you hit the minefield of undefined instructions. op2: {op2}, op3: {op3}");
     }
@@ -203,33 +205,63 @@ internal static class Arm64LoadsStores
         
         if(op1)
             throw new Arm64UndefinedInstructionException("Load/store (exclusive register|ordered)|compare/swap: op1 set");
-        
-        if(op2 == 0 && op3.TestBit(6))
-            throw new Arm64UndefinedInstructionException("Load/store (exclusive register|ordered)|compare/swap: op2=0, op3 hi bit set");
-        
-        // op0 xx00 | op1 0 | op2 01 | op3 top bit clear | Load/store ordered
-        if ((op0 & 0b11) == 0 && !op1 && op2 == 0b01 && (op3 & 0b10_0000) == 0)
-            return LoadStoreOrdered(instruction);
 
-        // op0 xx00 | op1 0 | op2 0x | op3 empty | op4 empty | Load/store exclusive
-        if ((op0 & 0b11) == 0 && !op1 && !op2.TestBit(1)) 
-            return LoadStoreExclusive(instruction);
-        
-        if(op2 != 1)
-            throw new Arm64UndefinedInstructionException("Load/store (exclusive register|ordered)|compare/swap: op2 was not 0 or 1");
-
-        if (op3.TestBit(6))
-            return CompareAndSwap(instruction);
-
-        throw new Arm64UndefinedInstructionException($"Load/store (exclusive register|ordered)|compare/swap: op0 {op0}, op1 {op1}, op2 {op2}, op3 {op3}, op4 {op4}");
+        //op3 top bit distinguishes the exclusive/ordered forms from the compare/swap ones
+        return op2 switch
+        {
+            0b00 when !op3.TestBit(5) => LoadStoreExclusive(instruction),
+            0b00 => CompareAndSwap(instruction), //compare and swap pair
+            0b01 when !op3.TestBit(5) => LoadStoreOrdered(instruction),
+            0b01 => CompareAndSwap(instruction),
+            _ => throw new Arm64UndefinedInstructionException($"Load/store (exclusive register|ordered)|compare/swap: op0 {op0}, op1 {op1}, op2 {op2}, op3 {op3}, op4 {op4}")
+        };
     }
-    
+
     private static Arm64Instruction LoadStoreExclusive(uint instruction)
     {
+        var size = (instruction >> 30) & 0b11; //Bits 30-31
+        var isLoad = instruction.TestBit(22);
+        var rs = (int)(instruction >> 16) & 0b1_1111; //Bits 16-20
+        var o0 = instruction.TestBit(15);
+        var rn = (int)(instruction >> 5) & 0b1_1111; //Bits 5-9
+        var rt = (int)(instruction & 0b1_1111); //Bits 0-4
+
+        var mnemonic = size switch
+        {
+            0b00 when isLoad => o0 ? Arm64Mnemonic.LDAXRB : Arm64Mnemonic.LDXRB,
+            0b00 => o0 ? Arm64Mnemonic.STLXRB : Arm64Mnemonic.STXRB,
+            0b01 when isLoad => o0 ? Arm64Mnemonic.LDAXRH : Arm64Mnemonic.LDXRH,
+            0b01 => o0 ? Arm64Mnemonic.STLXRH : Arm64Mnemonic.STXRH,
+            _ when isLoad => o0 ? Arm64Mnemonic.LDAXR : Arm64Mnemonic.LDXR,
+            _ => o0 ? Arm64Mnemonic.STLXR : Arm64Mnemonic.STXR,
+        };
+
+        var dataBaseReg = size == 0b11 ? Arm64Register.X0 : Arm64Register.W0;
+
+        if (isLoad)
+            return new()
+            {
+                Mnemonic = mnemonic,
+                Op0Kind = Arm64OperandKind.Register,
+                Op1Kind = Arm64OperandKind.Memory,
+                Op0Reg = dataBaseReg + rt,
+                MemBase = Arm64Register.X0 + rn,
+                MemIndexMode = Arm64MemoryIndexMode.Offset,
+                MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister,
+            };
+
+        //stores get a status register, which is always a w reg
         return new()
         {
-            Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
-            MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister, 
+            Mnemonic = mnemonic,
+            Op0Kind = Arm64OperandKind.Register,
+            Op1Kind = Arm64OperandKind.Register,
+            Op2Kind = Arm64OperandKind.Memory,
+            Op0Reg = Arm64Register.W0 + rs,
+            Op1Reg = dataBaseReg + rt,
+            MemBase = Arm64Register.X0 + rn,
+            MemIndexMode = Arm64MemoryIndexMode.Offset,
+            MnemonicCategory = Arm64MnemonicCategory.MemoryToOrFromRegister,
         };
     }
     

@@ -412,6 +412,63 @@ public class LoadStoreTests : BaseDisarmTest
     }
 
     [Fact]
+    public void TestLoadStoreExclusive()
+    {
+        var insn = DisassembleAndCheckMnemonic(0xC85F7C20, Arm64Mnemonic.LDXR);
+        Assert.Equal("0x00000000 LDXR X0, [X1]", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x085F7C62, Arm64Mnemonic.LDXRB);
+        Assert.Equal("0x00000000 LDXRB W2, [X3]", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x485F7CA4, Arm64Mnemonic.LDXRH);
+        Assert.Equal("0x00000000 LDXRH W4, [X5]", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x885FFCE6, Arm64Mnemonic.LDAXR);
+        Assert.Equal("0x00000000 LDAXR W6, [X7]", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0xC8087D49, Arm64Mnemonic.STXR);
+        Assert.Equal("0x00000000 STXR W8, X9, [X10]", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x080B7DAC, Arm64Mnemonic.STXRB);
+        Assert.Equal("0x00000000 STXRB W11, W12, [X13]", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x880EFE0F, Arm64Mnemonic.STLXR);
+        Assert.Equal("0x00000000 STLXR W14, W15, [X16]", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x4811FE72, Arm64Mnemonic.STLXRH);
+        Assert.Equal("0x00000000 STLXRH W17, W18, [X19]", insn.ToString());
+    }
+
+    [Fact]
+    public void TestLoadStoreMultipleStructures()
+    {
+        var insn = DisassembleAndCheckMnemonic(0x4CDF7000, Arm64Mnemonic.LD1);
+        Assert.Equal("0x00000000 LD1 V0.16B, [X0], #0x10", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x0C407041, Arm64Mnemonic.LD1);
+        Assert.Equal("0x00000000 LD1 V1.8B, [X2]", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x4C86A8A3, Arm64Mnemonic.ST1);
+        Assert.Equal("0x00000000 ST1 V3.4S, V4.4S, [X5], X6", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x4C408527, Arm64Mnemonic.LD2);
+        Assert.Equal("0x00000000 LD2 V7.8H, V8.8H, [X9]", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x0CDF4881, Arm64Mnemonic.LD3);
+        Assert.Equal("0x00000000 LD3 V1.2S, V2.2S, V3.2S, [X4], #0x18", insn.ToString());
+
+        //register lists wrap around v31
+        insn = DisassembleAndCheckMnemonic(0x4C00803F, Arm64Mnemonic.ST2);
+        Assert.Equal("0x00000000 ST2 V31.16B, V0.16B, [X1]", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x0C407CC5, Arm64Mnemonic.LD1);
+        Assert.Equal("0x00000000 LD1 V5.1D, [X6]", insn.ToString());
+
+        //4-register lists don't fit the operand model yet
+        DisassembleAndCheckMnemonic(0x4C400800, Arm64Mnemonic.UNIMPLEMENTED);
+    }
+
+    [Fact]
     public void TestRegOffsetUndefinedOption()
     {
         //option<1> == 0 is unallocated for register offset loads/stores
