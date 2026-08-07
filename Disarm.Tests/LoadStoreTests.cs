@@ -464,8 +464,20 @@ public class LoadStoreTests : BaseDisarmTest
         insn = DisassembleAndCheckMnemonic(0x0C407CC5, Arm64Mnemonic.LD1);
         Assert.Equal("0x00000000 LD1 V5.1D, [X6]", insn.ToString());
 
-        //4-register lists don't fit the operand model yet
-        DisassembleAndCheckMnemonic(0x4C400800, Arm64Mnemonic.UNIMPLEMENTED);
+        insn = DisassembleAndCheckMnemonic(0x4C400800, Arm64Mnemonic.LD4);
+        Assert.Equal("0x00000000 LD4 V0.4S, V1.4S, V2.4S, V3.4S, [X0]", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x4C9F0024, Arm64Mnemonic.ST4);
+        Assert.Equal("0x00000000 ST4 V4.16B, V5.16B, V6.16B, V7.16B, [X1], #0x40", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x4CC30448, Arm64Mnemonic.LD4);
+        Assert.Equal("0x00000000 LD4 V8.8H, V9.8H, V10.8H, V11.8H, [X2], X3", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x4C402C8C, Arm64Mnemonic.LD1);
+        Assert.Equal("0x00000000 LD1 V12.2D, V13.2D, V14.2D, V15.2D, [X4]", insn.ToString());
+
+        insn = DisassembleAndCheckMnemonic(0x0C9F20BE, Arm64Mnemonic.ST1);
+        Assert.Equal("0x00000000 ST1 V30.8B, V31.8B, V0.8B, V1.8B, [X5], #0x20", insn.ToString());
     }
 
     [Fact]

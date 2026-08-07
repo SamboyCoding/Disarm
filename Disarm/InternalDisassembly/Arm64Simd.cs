@@ -254,14 +254,6 @@ internal static class Arm64Simd
             _ => throw new("Impossible size")
         };
 
-        if (numRegs == 4)
-            //TODO need 5th operand slot, 4 registers + memory
-            return new()
-            {
-                Mnemonic = Arm64Mnemonic.UNIMPLEMENTED,
-                MnemonicCategory = Arm64MnemonicCategory.SimdStructureLoadOrStore,
-            };
-
         var insn = new Arm64Instruction
         {
             Mnemonic = mnemonic,
@@ -287,13 +279,29 @@ internal static class Arm64Simd
             insn.Op2Arrangement = arrangement;
         }
 
+        if (numRegs > 3)
+        {
+            insn.Op3Kind = Arm64OperandKind.Register;
+            insn.Op3Reg = Arm64Register.V0 + (rt + 3) % 32;
+            insn.Op3Arrangement = arrangement;
+        }
+
         //memory operand goes in the slot after the last register
-        if (numRegs == 1)
-            insn.Op1Kind = Arm64OperandKind.Memory;
-        else if (numRegs == 2)
-            insn.Op2Kind = Arm64OperandKind.Memory;
-        else
-            insn.Op3Kind = Arm64OperandKind.Memory;
+        switch (numRegs)
+        {
+            case 1:
+                insn.Op1Kind = Arm64OperandKind.Memory;
+                break;
+            case 2:
+                insn.Op2Kind = Arm64OperandKind.Memory;
+                break;
+            case 3:
+                insn.Op3Kind = Arm64OperandKind.Memory;
+                break;
+            default:
+                insn.Op4Kind = Arm64OperandKind.Memory;
+                break;
+        }
 
         if (postIndexed)
         {

@@ -147,13 +147,15 @@ public struct Arm64Instruction
         sb.Append(' ');
 
         //Ew yes I'm using goto.
-        if (!AppendOperand(sb, Op0Kind, Op0Reg, Op0VectorElement, Op0Arrangement, Op1ShiftType, Op0Imm, Op0FpImm))
+        if (!AppendOperand(sb, Op0Kind, Op0Reg, Op0VectorElement, Op0Arrangement, Op0ShiftType, Op0Imm, Op0FpImm))
             goto doneops;
         if (!AppendOperand(sb, Op1Kind, Op1Reg, Op1VectorElement, Op1Arrangement, Op1ShiftType, Op1Imm, Op1FpImm, true))
             goto doneops;
-        if (!AppendOperand(sb, Op2Kind, Op2Reg, Op2VectorElement, Op2Arrangement, Op1ShiftType, Op2Imm, Op2FpImm, true))
+        if (!AppendOperand(sb, Op2Kind, Op2Reg, Op2VectorElement, Op2Arrangement, Op2ShiftType, Op2Imm, Op2FpImm, true))
             goto doneops;
-        if (!AppendOperand(sb, Op3Kind, Op3Reg, Op3VectorElement, Op3Arrangement, Op1ShiftType, Op3Imm, Op3FpImm, true))
+        if (!AppendOperand(sb, Op3Kind, Op3Reg, Op3VectorElement, Op3Arrangement, Op3ShiftType, Op3Imm, Op3FpImm, true))
+            goto doneops;
+        if (!AppendOperand(sb, Op4Kind, Op4Reg, Op4VectorElement, Op4Arrangement, Op4ShiftType, Op4Imm, Op4FpImm, true))
             goto doneops;
         
         doneops:
