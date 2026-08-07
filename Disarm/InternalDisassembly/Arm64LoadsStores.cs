@@ -943,12 +943,12 @@ internal static class Arm64LoadsStores
         //Shifted register: Mnemonic Wt, [Xn, Xm|Wm, LSL Amount]
 
         var shiftAmount = 0;
-        if (sFlag && isShiftedRegister)
+        if (sFlag)
         {
-            //Shift set, amount is size-dependent
+            //S bit set, amount is size-dependent and applies to both shifted and extended forms
             shiftAmount = size switch
             {
-                0b00 when isVector && opc == 0b11 => 4, //128-bit variant
+                0b00 when isVector && opc is 0b10 or 0b11 => 4, //128-bit variant
                 0b00 => 0, //8-bit variant, vector or otherwise
                 0b01 => 1,
                 0b10 => 2,

@@ -156,4 +156,12 @@ public class LoadStoreTests : BaseDisarmTest
         
         Assert.Equal("0x00000000 LDAR X8, X20", insn.ToString());
     }
+
+    [Fact]
+    public void TestLoadRegExtended()
+    {
+        var insn = DisassembleAndCheckMnemonic(0xF8685928, Arm64Mnemonic.LDR);
+        
+        Assert.Equal("0x00000000 LDR X8, [X9, W8, UXTW #3]", insn.ToString());
+    }
 }
