@@ -88,6 +88,7 @@ internal static class Arm64DataProcessingRegister
             0b00_0011 => Arm64Mnemonic.REV,
             0b00_0100 => Arm64Mnemonic.CLZ,
             0b00_0101 => Arm64Mnemonic.CLS,
+            _ => throw new("Impossible opcode")
         };
         
         return new()
