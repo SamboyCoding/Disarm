@@ -330,8 +330,10 @@ internal static class Arm64CommonUtils
         //Finally add bits 5 and 4
         exp |= (imm8 & 0b0011_0000U) >> 4;
 
-        var frac = imm8 & 0b0000_1111U;
-        frac <<= f - 4; //Append f - 4 0s
+        // Keep the shifted fraction 64-bit: the 64-bit format needs a 48-bit shift, and shifting a
+        // 32-bit value would wrap the count modulo 32, parking the fraction nibble at bit 16
+        // instead of bit 48 (e.g. `fmov d16, #15.0` decoded as 8.000000001629815).
+        var frac = (ulong)(imm8 & 0b0000_1111U) << (f - 4); //Append f - 4 0s
 
         var resultBits = (signBit ? 1UL : 0UL) << (n - 1);
         resultBits |= (ulong)exp << f;
